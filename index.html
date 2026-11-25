@@ -50,14 +50,13 @@
   }
   .map-search-results:empty { display: none; }
   .map-search-result {
-    display: block; width: 100%; padding: 10px 14px; border: 0;
+    display: flex; align-items: flex-start; gap: 10px;
+    width: 100%; padding: 11px 14px; border: 0;
     border-bottom: 1px solid #f1f5f9; background: white; text-align: left; cursor: pointer;
+    transition: background 0.15s;
   }
   .map-search-result:hover { background: #f8fafc; }
-  .my-location-dot {
-    width: 20px; height: 20px; border: 3px solid white; border-radius: 50%;
-    background: #4285f4; box-shadow: 0 1px 6px rgba(0,0,0,.45);
-  }
+  .map-search-result:last-child { border-bottom: 0; }
 </style>
 </head>
 <body>
@@ -76,19 +75,20 @@
   </div>
 </div>
 
-<!-- กล่องค้นหาจุดหมายที่จะไป (แสดงด้านบนเสมอในโหมดคนขับ) -->
+<!-- กล่องค้นหาจุดหมายที่จะไป (พร้อมคาดการณ์สถานที่อัตโนมัติขณะพิมพ์) -->
 <div id="topSearchWrapper" class="map-search-ui hidden">
-  <form id="mapSearchForm" class="flex gap-1.5 rounded-full bg-white/95 backdrop-blur p-1.5 shadow-lg border border-slate-100">
+  <form id="mapSearchForm" class="flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur p-1.5 shadow-lg border border-slate-100">
     <input
       id="mapSearchInput"
       type="search"
       autocomplete="off"
-      placeholder="ค้นหาจุดหมายที่จะไป เช่น พัทลุง, ม.ทักษิณ..."
+      placeholder="พิมพ์ชื่อสถานที่ที่จะไป เช่น ม.ทักษิณ, พัทลุง..."
       class="min-w-0 flex-1 rounded-full px-4 py-2 text-sm outline-none bg-transparent"
     >
-    <button type="submit" class="rounded-full bg-indigo-500 hover:bg-indigo-600 px-4 text-sm text-white font-medium transition">ค้นหา</button>
+    <button id="clearSearchBtn" type="button" class="hidden text-slate-400 hover:text-slate-600 px-2 text-sm" title="ล้างคำค้นหา">&#10005;</button>
+    <button type="submit" class="rounded-full bg-indigo-500 hover:bg-indigo-600 px-4 py-2 text-sm text-white font-medium transition">ค้นหา</button>
   </form>
-  <div id="mapSearchResults" class="map-search-results mt-2 max-h-56 overflow-y-auto rounded-2xl bg-white text-sm shadow-xl border border-slate-100"></div>
+  <div id="mapSearchResults" class="map-search-results mt-2 max-h-64 overflow-y-auto rounded-2xl bg-white/98 backdrop-blur text-sm shadow-xl border border-slate-100"></div>
 </div>
 
 <!-- ปุ่มตำแหน่งปัจจุบัน -->
@@ -187,8 +187,7 @@ const firebaseConfig = {
   messagingSenderId: "1007262654950",
   appId: "1:1007262654950:web:d4bc25cf1b4df5730ab627"
 };
-const MAP_API_KEY = "cb1_5fsw_1_d652ebba69f34b5f275e31f2";
-const DEFAULT_CENTER = [7.0086, 100.4747]; // หาดใหญ่
+const DEFAULT_CENTER = [7.1897, 100.5954]; // สงขลา
 const DEMO_DEST = { lat: 7.6166, lng: 100.0740, name: 'พัทลุง' };
 const GPS_INTERVAL_MS = 3000;
 const FALLBACK_SPEED = 60;
@@ -222,12 +221,13 @@ const state = { avatar: null, status: null, location: null, destination: null };
 let routeCum = null, meMarker = null, destMarker = null, routeLine = null;
 let followMe = true, fitted = false, avgSpeed = null;
 
-/* ================= MAP ================= */
-const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 9);
+/* ================= MAP (ไม่ใช้ API Key) ================= */
+const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 11);
 map.attributionControl.setPosition('bottomleft');
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors',
-  maxZoom: 19
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  subdomains: 'abcd',
+  maxZoom: 20
 }).addTo(map);
 
 /* ================= HELPERS ================= */
@@ -396,7 +396,7 @@ async function sendSticker(s) {
   try {
     await tripRef.child('sticker').set({ emoji: s.emoji, text: s.text, timestamp: TS });
     toast('ส่งแล้ว!');
-  } catch (e) { toast('ส่งไม่สำเร็จ ลองใหม่อีกครั้ง'); }
+  } catch (e) { toast('ส่งไม่สำเร็จ (ตรวจสอบ Firebase Rules)'); }
 }
 
 /* ================= REALTIME LISTENERS ================= */
@@ -420,7 +420,6 @@ function setFollow(on) {
 $('followBtn').onclick = () => setFollow(!followMe);
 map.on('dragstart', () => { if (followMe) setFollow(false); });
 
-/* ปุ่มโฟกัสตำแหน่งปัจจุบัน */
 $('myLocationBtn').addEventListener('click', () => {
   if (!navigator.geolocation) return toast('เบราว์เซอร์ไม่รองรับ GPS');
   toast('กำลังหาตำแหน่งปัจจุบัน...');
@@ -431,7 +430,7 @@ $('myLocationBtn').addEventListener('click', () => {
   }, () => toast('กรุณาอนุญาตการเข้าถึง GPS'), { enableHighAccuracy: true, timeout: 10000 });
 });
 
-/* ================= DRIVER & SEARCH ================= */
+/* ================= DRIVER & AUTOCOMPLETE SEARCH ================= */
 async function dw(path, val) {
   try { await tripRef.child(path).set(val); return true; }
   catch (e) { toast('บันทึกไม่สำเร็จ (ตรวจสอบ Firebase Rules)'); return false; }
@@ -486,28 +485,53 @@ async function setDestination(lat, lng, name) {
   } finally { routing = false; }
 }
 
-/* ค้นหาสถานที่ด้านบน -> กดเลือกแล้วตั้งจุดหมายปลายทางทันที */
-$('mapSearchForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const query = $('mapSearchInput').value.trim();
-  if (!query) return;
+/* คาดการณ์สถานที่อัตโนมัติขณะพิมพ์ (Debounce Autocomplete) */
+let searchTimer = null;
+let searchAbortController = null;
+
+async function performPlaceSearch(query) {
   const resultsBox = $('mapSearchResults');
-  resultsBox.textContent = 'กำลังค้นหา...';
+  if (!query || query.length < 2) {
+    resultsBox.replaceChildren();
+    return;
+  }
+
+  if (searchAbortController) searchAbortController.abort();
+  searchAbortController = new AbortController();
+
+  resultsBox.innerHTML = '<div class="px-4 py-3 text-xs text-slate-400">กำลังคาดการณ์สถานที่...</div>';
 
   try {
-    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=th&countrycodes=th&q=' + encodeURIComponent(query);
-    const response = await fetch(url);
+    const center = map.getCenter();
+    // ให้น้ำหนักผลลัพธ์ใกล้บริเวณที่เปิดแผนที่อยู่ (เช่น ภาคใต้)
+    const viewbox = `${center.lng - 1.5},${center.lat + 1.5},${center.lng + 1.5},${center.lat - 1.5}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=th&countrycodes=th&viewbox=${viewbox}&q=${encodeURIComponent(query)}`;
+    
+    const response = await fetch(url, { signal: searchAbortController.signal });
     const places = await response.json();
     resultsBox.replaceChildren();
 
-    if (!places.length) { resultsBox.textContent = 'ไม่พบสถานที่'; return; }
+    if (!places.length) {
+      resultsBox.innerHTML = '<div class="px-4 py-3 text-xs text-slate-400">ไม่พบสถานที่ที่ตรงกัน ลองพิมพ์ชื่อจังหวัด/อำเภอเพิ่ม</div>';
+      return;
+    }
 
     places.forEach(place => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'map-search-result';
-      const shortName = place.name || place.display_name.split(',')[0];
-      button.innerHTML = `<div class="font-medium text-slate-700">${shortName}</div><div class="text-xs text-slate-400 truncate">${place.display_name}</div>`;
+      
+      const parts = place.display_name.split(',').map(s => s.trim());
+      const shortName = place.name || parts[0];
+      const subAddress = parts.slice(1, 4).join(', ');
+
+      button.innerHTML = `
+        <span class="text-base mt-0.5 text-indigo-400">&#128205;</span>
+        <div class="min-w-0 flex-1">
+          <div class="font-medium text-slate-700 truncate">${shortName}</div>
+          <div class="text-[11px] text-slate-400 truncate">${subAddress || place.display_name}</div>
+        </div>
+      `;
 
       button.addEventListener('click', () => {
         const lat = Number(place.lat), lng = Number(place.lon);
@@ -517,7 +541,35 @@ $('mapSearchForm').addEventListener('submit', async event => {
       });
       resultsBox.appendChild(button);
     });
-  } catch (error) { resultsBox.textContent = 'ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง'; }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      resultsBox.innerHTML = '<div class="px-4 py-3 text-xs text-rose-400">ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง</div>';
+    }
+  }
+}
+
+$('mapSearchInput').addEventListener('input', event => {
+  const query = event.target.value.trim();
+  $('clearSearchBtn').classList.toggle('hidden', query.length === 0);
+  clearTimeout(searchTimer);
+  if (query.length < 2) {
+    $('mapSearchResults').replaceChildren();
+    return;
+  }
+  searchTimer = setTimeout(() => performPlaceSearch(query), 400);
+});
+
+$('clearSearchBtn').addEventListener('click', () => {
+  $('mapSearchInput').value = '';
+  $('clearSearchBtn').classList.add('hidden');
+  $('mapSearchResults').replaceChildren();
+  $('mapSearchInput').focus();
+});
+
+$('mapSearchForm').addEventListener('submit', event => {
+  event.preventDefault();
+  clearTimeout(searchTimer);
+  performPlaceSearch($('mapSearchInput').value.trim());
 });
 
 /* GPS + Wake Lock */
