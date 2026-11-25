@@ -187,6 +187,7 @@ const firebaseConfig = {
   messagingSenderId: "1007262654950",
   appId: "1:1007262654950:web:d4bc25cf1b4df5730ab627"
 };
+const MAP_API_KEY = "cb1_5fsw_1_d652ebba69f34b5f275e31f2";
 const DEFAULT_CENTER = [7.0086, 100.4747]; // หาดใหญ่
 const DEMO_DEST = { lat: 7.6166, lng: 100.0740, name: 'พัทลุง' };
 const GPS_INTERVAL_MS = 3000;
@@ -224,7 +225,7 @@ let followMe = true, fitted = false, avgSpeed = null;
 /* ================= MAP ================= */
 const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 9);
 map.attributionControl.setPosition('bottomleft');
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${MAP_API_KEY}`, {
   attribution: '&copy; OpenStreetMap &copy; CARTO',
   subdomains: 'abcd',
   maxZoom: 20
