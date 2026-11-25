@@ -1,372 +1,638 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Where is Cha? - ติดตามการเดินทาง</title>
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  <style>
-    body { font-family: 'Prompt', sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; }
-    #map { height: 100vh; width: 100vw; z-index: 1; }
-    .avatar-marker {
-      border-radius: 50%; border: 3px solid #ffffff;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
-      background-size: cover; background-position: center; background-color: #E2E8F0;
-    }
-    .avatar-pulse {
-      position: absolute; width: 100%; height: 100%; border-radius: 50%;
-      background: rgba(99, 102, 241, 0.35); animation: pulse 2s infinite; z-index: -1;
-    }
-    @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.7); opacity: 0; } }
-    @keyframes floatUp {
-      0% { transform: translateY(20px) scale(0.8); opacity: 0; }
-      20% { transform: translateY(0) scale(1.1); opacity: 1; }
-      80% { transform: translateY(-10px) scale(1); opacity: 1; }
-      100% { transform: translateY(-40px) scale(0.9); opacity: 0; }
-    }
-    .sticker-toast { animation: floatUp 3.5s ease-in-out forwards; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f8fafc">
+<title>Where is Cha?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Prompt', 'sans-serif'] } } } };</script>
+<style>
+  html, body { height: 100%; margin: 0; font-family: 'Prompt', sans-serif; background: #f1f5f9; }
+  #map { position: fixed; inset: 0; z-index: 0; }
+  .avatar-wrap { position: relative; width: 56px; height: 56px; }
+  .avatar-wrap img, .avatar-wrap .ph {
+    position: absolute; inset: 0; width: 56px; height: 56px; border-radius: 9999px;
+    border: 3px solid #fff; box-shadow: 0 4px 14px rgba(0,0,0,.22); object-fit: cover;
+    background: #fbcfe8; display: flex; align-items: center; justify-content: center; font-size: 26px; z-index: 2;
+  }
+  .pulse { position: absolute; inset: 0; border-radius: 9999px; background: rgba(244,114,182,.45); animation: pulse 2s ease-out infinite; z-index: 1; }
+  .pulse.d2 { animation-delay: 1s; }
+  @keyframes pulse { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.6); opacity: 0; } }
+  .dest-pin {
+    width: 36px; height: 36px; border-radius: 9999px; background: #fff; border: 2px solid #c7d2fe;
+    box-shadow: 0 4px 12px rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .chip.active { background: #1e293b; color: #fff; }
+  .toggle.on { background: #fb7185 !important; color: #fff !important; }
+  .sticker-pop {
+    position: fixed; left: 50%; top: 42%; z-index: 2000; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; animation: pop 2.8s ease forwards;
+  }
+  @keyframes pop {
+    0%   { transform: translate(-50%, -20%) scale(.3); opacity: 0; }
+    15%  { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+    25%  { transform: translate(-50%, -50%) scale(1); }
+    80%  { transform: translate(-50%, -60%); opacity: 1; }
+    100% { transform: translate(-50%, -110%); opacity: 0; }
+  }
+  .leaflet-control-attribution { font-size: 10px; }
+</style>
 </head>
-<body class="overflow-hidden select-none text-slate-700">
+<body>
+<div id="map"></div>
 
-  <div id="map"></div>
+<!-- Top bar -->
+<div class="fixed top-0 inset-x-0 z-[1000] p-3 pointer-events-none" style="padding-top:max(12px,env(safe-area-inset-top))">
+  <div class="pointer-events-auto inline-flex items-center gap-2 bg-white/90 backdrop-blur rounded-full shadow-md px-4 py-2">
+    <span class="text-lg font-semibold text-slate-700">Where is Cha?</span>
+    <span id="modeBadge" class="hidden text-xs bg-indigo-100 text-indigo-600 rounded-full px-2 py-0.5">คนขับ</span>
+  </div>
+</div>
 
-  <!-- แถบด้านบน -->
-  <div class="fixed top-4 left-4 right-4 z-20 flex flex-col gap-2 pointer-events-none">
-    <div class="flex justify-between items-center">
-      <div class="bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 pointer-events-auto flex items-center gap-2.5">
-        <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
-        <div>
-          <p id="status-text" class="text-xs font-medium text-slate-700">รอเริ่มการเดินทาง</p>
-          <p id="last-update" class="text-[10px] text-slate-400">พร้อมเชื่อมต่อฐานข้อมูลแล้ว</p>
+<!-- Toast -->
+<div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 top-20 z-[2500] bg-slate-800/90 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90vw] text-center"></div>
+
+<!-- Bottom sheet -->
+<div class="fixed bottom-0 inset-x-0 z-[1000] flex justify-center px-3" style="padding-bottom:max(12px,env(safe-area-inset-bottom))">
+  <div class="w-full max-w-md bg-white/95 backdrop-blur rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+    <button id="handle" class="w-full pt-2.5 pb-1 flex justify-center" aria-label="ย่อ/ขยาย">
+      <span class="w-10 h-1.5 rounded-full bg-slate-200"></span>
+    </button>
+    <div class="px-5 pb-4">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div id="statusText" class="text-base font-medium text-slate-700 truncate">รอข้อมูล...</div>
+          <div id="updatedText" class="text-xs text-slate-400">-</div>
         </div>
+        <button id="followBtn" class="shrink-0 text-xs rounded-full px-3 py-1.5 bg-pink-50 text-pink-500">ตามหมุด: เปิด</button>
       </div>
 
-      <div class="bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-sm border border-slate-100 pointer-events-auto flex text-xs">
-        <button id="btn-mode-viewer" onclick="setMode('viewer')" class="px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600">&#128064; โหมดแฟนดู</button>
-        <button id="btn-mode-driver" onclick="setMode('driver')" class="px-3 py-1.5 rounded-xl font-medium text-slate-500 transition">&#128663; โหมดคนขับ</button>
-      </div>
-    </div>
-
-    <div id="search-box-container" class="hidden pointer-events-auto max-w-md w-full mx-auto">
-      <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 p-1.5 flex items-center gap-2">
-        <input type="text" id="dest-input" placeholder="พิมพ์จุดหมาย เช่น พัทลุง หรือแตะบนแผนที่..." class="flex-1 bg-transparent text-xs px-3 py-1.5 outline-none text-slate-700" onkeypress="if(event.key==='Enter') searchDestination()" />
-        <button onclick="searchDestination()" class="px-3 py-1.5 bg-indigo-500 text-white rounded-xl text-xs font-medium hover:bg-indigo-600 transition">ค้นหา</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ปุ่มด้านขวา -->
-  <div class="fixed top-32 right-4 z-20 flex flex-col gap-2">
-    <button onclick="centerMap()" title="โฟกัสตำแหน่ง" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition">&#127919;</button>
-    <button onclick="fitRouteBounds()" title="ดูภาพรวมเส้นทาง" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition">&#128506;</button>
-    <label for="avatar-upload" title="เปลี่ยนรูปอวตาร" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition cursor-pointer">&#128247;</label>
-    <button onclick="clearDestination()" title="ล้างจุดหมาย" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition text-xs">&#129529;</button>
-    <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)" />
-  </div>
-
-  <div id="sticker-container" class="fixed inset-0 pointer-events-none z-30 flex items-center justify-center"></div>
-
-  <!-- การ์ดควบคุมด้านล่าง -->
-  <div class="fixed bottom-5 left-4 right-4 z-20 max-w-md mx-auto">
-    <div class="bg-white/95 backdrop-blur-md rounded-3xl p-5 shadow-lg border border-slate-100">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-3">
-          <div class="relative">
-            <img id="preview-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Cha" alt="Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-100 bg-slate-100" />
-            <label for="avatar-upload" class="absolute -bottom-1 -right-1 bg-indigo-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center cursor-pointer shadow">&#9998;</label>
+      <div id="sheetBody" class="max-h-[58vh] overflow-y-auto">
+        <!-- Progress -->
+        <div class="mt-3">
+          <div class="flex justify-between text-xs text-slate-500 mb-1.5">
+            <span id="destText" class="truncate pr-2">ยังไม่ได้ตั้งจุดหมาย</span><span id="pctText">0%</span>
           </div>
+          <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+            <div id="progressBar" class="h-full rounded-full bg-gradient-to-r from-pink-300 to-indigo-300 transition-all duration-700" style="width:0%"></div>
+          </div>
+          <div id="etaDetail" class="text-[11px] text-slate-400 mt-1"></div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+          <div class="rounded-2xl bg-slate-50 py-2.5"><div id="speedText" class="text-xl font-semibold text-slate-700">0</div><div class="text-[11px] text-slate-400">km/h</div></div>
+          <div class="rounded-2xl bg-slate-50 py-2.5"><div id="remainText" class="text-xl font-semibold text-slate-700">-</div><div class="text-[11px] text-slate-400">กม. ที่เหลือ</div></div>
+          <div class="rounded-2xl bg-slate-50 py-2.5"><div id="etaText" class="text-xl font-semibold text-slate-700">-</div><div class="text-[11px] text-slate-400">ถึงประมาณ</div></div>
+        </div>
+
+        <!-- Viewer -->
+        <div id="viewerPanel" class="mt-4">
+          <div class="text-xs text-slate-400 mb-1.5">ส่งกำลังใจ</div>
+          <div id="stickerBtns" class="grid grid-cols-4 gap-2"></div>
+        </div>
+
+        <!-- Driver -->
+        <div id="driverPanel" class="hidden mt-4 space-y-4">
+          <div class="flex items-center gap-3">
+            <img id="avatarPreview" alt="" class="w-12 h-12 rounded-full object-cover bg-pink-100 border-2 border-white shadow"
+                 src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+            <label class="flex-1 text-center text-sm rounded-xl border border-dashed border-slate-300 py-2.5 text-slate-500 cursor-pointer">
+              เปลี่ยนรูปอวตาร<input id="avatarInput" type="file" accept="image/*" class="hidden">
+            </label>
+          </div>
+
           <div>
-            <h2 class="text-sm font-semibold text-slate-800">คุณชา</h2>
-            <p id="dest-label" class="text-xs text-slate-400 truncate max-w-[170px]">ยังไม่ได้ตั้งจุดหมายปลายทาง</p>
+            <div class="text-xs text-slate-400 mb-1.5">จุดหมาย</div>
+            <form id="searchForm" class="flex gap-2">
+              <input id="searchInput" class="flex-1 min-w-0 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-300" placeholder="ค้นหาสถานที่ เช่น พัทลุง">
+              <button class="rounded-xl bg-slate-800 text-white text-sm px-4">ค้นหา</button>
+            </form>
+            <div id="searchResults" class="mt-2 space-y-1 text-sm text-slate-400"></div>
+            <div class="flex gap-2 mt-2">
+              <button id="pickBtn" class="toggle flex-1 rounded-xl bg-indigo-50 text-indigo-600 text-sm py-2.5">แตะแผนที่เพื่อปักหมุด</button>
+              <button id="clearDestBtn" class="rounded-xl bg-slate-100 text-slate-500 text-sm px-4">ล้าง</button>
+            </div>
           </div>
-        </div>
-        <div class="text-right bg-slate-50 px-3 py-1.5 rounded-2xl border border-slate-100">
-          <span id="speed-display" class="text-lg font-semibold text-indigo-600">0</span>
-          <span class="text-[10px] text-slate-400 block -mt-1">km/h</span>
-        </div>
-      </div>
 
-      <div id="progress-section" class="hidden mb-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-        <div class="flex justify-between items-center text-xs mb-1.5">
-          <span class="font-medium text-indigo-600" id="progress-percent">เดินทางแล้ว 0%</span>
-          <span class="text-slate-500 text-[11px]" id="remaining-info">เหลือ 0 กม. (~0 นาที)</span>
-        </div>
-        <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-          <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-        </div>
-      </div>
+          <div>
+            <div class="text-xs text-slate-400 mb-1.5">สถานะ</div>
+            <div id="statusBtns" class="grid grid-cols-3 gap-2"></div>
+          </div>
 
-      <div id="driver-controls" class="hidden space-y-2.5">
-        <div class="grid grid-cols-3 gap-2 text-xs">
-          <button onclick="updateTripStatus('กำลังเดินทาง')" class="py-2 rounded-xl bg-emerald-50 text-emerald-600 font-medium hover:bg-emerald-100 transition">กำลังขับรถ</button>
-          <button onclick="updateTripStatus('แวะพักแป๊บนึง')" class="py-2 rounded-xl bg-amber-50 text-amber-600 font-medium hover:bg-amber-100 transition">แวะพักรถ</button>
-          <button onclick="updateTripStatus('ถึงที่หมายแล้ว')" class="py-2 rounded-xl bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition">ถึงแล้ว!</button>
-        </div>
-        <div class="flex gap-2">
-          <button id="btn-share-gps" onclick="toggleTracking()" class="flex-1 py-3 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium shadow-sm transition">&#128205; เริ่มแชร์ตำแหน่งสด</button>
-          <button onclick="startDemoSimulation()" class="px-3 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition">ทดลองวิ่ง</button>
-        </div>
-      </div>
-
-      <div id="viewer-controls" class="space-y-2">
-        <p class="text-[11px] text-slate-400 text-center">ส่งกำลังใจให้คุณชา (เด้งขึ้นหน้าจอทันที)</p>
-        <div class="grid grid-cols-4 gap-2">
-          <button onclick="sendSticker('&#10084;&#65039;', 'คิดถึงนะ!')" class="py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium transition">&#10084;&#65039; คิดถึง</button>
-          <button onclick="sendSticker('&#128663;', 'ขับรถดีๆ นะ')" class="py-2 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-600 text-xs font-medium transition">&#128663; ขับดีๆ</button>
-          <button onclick="sendSticker('&#9749;', 'แวะพักบ้างนะ')" class="py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-medium transition">&#9749; พักบ้าง</button>
-          <button onclick="sendSticker('&#127881;', 'ถึงแล้วบอกด้วย')" class="py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-xs font-medium transition">&#127881; ถึงแล้วบอก</button>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="gpsBtn" class="toggle rounded-xl bg-indigo-500 text-white text-sm py-3">เริ่มแชร์ GPS</button>
+            <button id="demoBtn" class="toggle rounded-xl bg-slate-100 text-slate-600 text-sm py-3">ทดลองวิ่ง</button>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            เปิดหน้านี้ค้างไว้ระหว่างเดินทาง (ระบบกันจอดับให้อัตโนมัติ) ถ้าสลับไปแอปอื่นหรือล็อกจอ มือถือจะหยุดส่ง GPS ชั่วคราว
+            ส่วนโหมดทดลองวิ่งจะเขียนตำแหน่งจริงลงฐานข้อมูล แฟนจะเห็นหมุดขยับด้วย
+          </p>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBOpV9UvLKSVFySYhuCUeLrIT-8OIHL9fE",
-      authDomain: "where-is-cha.firebaseapp.com",
-      databaseURL: "https://where-is-cha-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "where-is-cha",
-      storageBucket: "where-is-cha.firebasestorage.app",
-      messagingSenderId: "1007262654950",
-      appId: "1:1007262654950:web:d4bc25cf1b4df5730ab627",
-      measurementId: "G-DVTGV1R30Y"
+<!-- PIN modal -->
+<div id="pinModal" class="hidden fixed inset-0 z-[3000] bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-6">
+  <form id="pinForm" class="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl text-center">
+    <div class="text-lg font-medium text-slate-700">โหมดคนขับ</div>
+    <p class="text-xs text-slate-400 mt-1">ใส่รหัส PIN เพื่อปลดล็อก (ครั้งเดียวต่อเครื่อง)</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="8" autocomplete="off"
+           class="mt-4 w-full text-center tracking-[0.5em] text-2xl rounded-2xl bg-slate-50 border border-slate-200 py-3 outline-none focus:border-indigo-300">
+    <div id="pinError" class="text-xs text-rose-500 mt-2 h-4"></div>
+    <button class="mt-3 w-full rounded-2xl bg-slate-800 text-white py-3">ปลดล็อก</button>
+    <a href="./" class="block mt-3 text-xs text-slate-400">กลับไปโหมดดู</a>
+  </form>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ================= CONFIG ================= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "where-is-cha.firebaseapp.com",
+  databaseURL: "https://where-is-cha-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "where-is-cha",
+  appId: "YOUR_APP_ID"
+};
+const DEFAULT_CENTER = [7.0086, 100.4747];                 // หาดใหญ่
+const DEMO_DEST = { lat: 7.6166, lng: 100.0740, name: 'พัทลุง' };
+const GPS_INTERVAL_MS = 3000;                               // ส่งพิกัดทุก 3 วินาที
+const FALLBACK_SPEED = 60;                                  // km/h ใช้คำนวณ ETA ตอนจอด/ช้า
+const DEMO_SECONDS = 90;                                    // เดโมวิ่งจบใน 90 วินาที
+
+/* อีโมจิเขียนเป็น \u escape ทั้งหมด (กัน GitHub web editor ตัดไฟล์) */
+const E = { car: '\uD83D\uDE97', coffee: '\u2615', flag: '\uD83C\uDFC1', heart: '\u2764\uFE0F', pin: '\uD83D\uDCCD', person: '\uD83D\uDE4B' };
+const STATUSES = [
+  { text: 'กำลังเดินทาง', emoji: E.car },
+  { text: 'แวะพัก', emoji: E.coffee },
+  { text: 'ถึงแล้ว', emoji: E.flag }
+];
+const STICKERS = [
+  { emoji: E.heart, text: 'คิดถึงนะ!' },
+  { emoji: E.car, text: 'ขับดีๆ นะ' },
+  { emoji: E.coffee, text: 'พักบ้างนะ' },
+  { emoji: E.pin, text: 'ถึงแล้วบอกด้วย' }
+];
+
+/* ================= INIT ================= */
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+const tripRef = db.ref('trip');
+const TS = firebase.database.ServerValue.TIMESTAMP;
+const IS_DRIVER = new URLSearchParams(location.search).get('mode') === 'driver';
+const $ = id => document.getElementById(id);
+
+let serverOffset = 0;
+db.ref('.info/serverTimeOffset').on('value', s => serverOffset = s.val() || 0);
+const serverNow = () => Date.now() + serverOffset;
+
+const state = { avatar: null, status: null, location: null, destination: null };
+let routeCum = null, meMarker = null, destMarker = null, routeLine = null;
+let followMe = true, fitted = false, avgSpeed = null;
+
+/* ================= MAP ================= */
+const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 8);
+map.attributionControl.setPosition('topright');
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 20
+}).addTo(map);
+
+/* ================= HELPERS ================= */
+function toast(msg, ms = 2500) {
+  const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.add('hidden'), ms);
+}
+const toRad = x => x * Math.PI / 180;
+function hav(a, b) {
+  const R = 6371, dLat = toRad(b[0] - a[0]), dLng = toRad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function buildCum(rc) { const c = [0]; for (let i = 1; i < rc.length; i++) c.push(c[i - 1] + hav(rc[i - 1], rc[i])); return c; }
+function pointAt(rc, cum, d) {
+  const i = cum.findIndex(c => c >= d);
+  if (i === -1) return rc[rc.length - 1];
+  if (i === 0) return rc[0];
+  const t = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+  return [rc[i - 1][0] + (rc[i][0] - rc[i - 1][0]) * t, rc[i - 1][1] + (rc[i][1] - rc[i - 1][1]) * t];
+}
+function downsample(arr, max) {
+  if (arr.length <= max) return arr;
+  const step = (arr.length - 1) / (max - 1), out = [];
+  for (let i = 0; i < max; i++) out.push(arr[Math.round(i * step)]);
+  return out;
+}
+const AVATAR_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const safeAvatar = s => (typeof s === 'string' && AVATAR_RE.test(s)) ? s : null;
+
+function remainingKm(pos) {
+  const d = state.destination; if (!d) return null;
+  const rc = d.routeCoords;
+  if (!rc || rc.length < 2 || !routeCum) return hav(pos, [d.destLat, d.destLng]);
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < rc.length; i++) { const x = hav(pos, rc[i]); if (x < bd) { bd = x; best = i; } }
+  return bd + (routeCum[routeCum.length - 1] - routeCum[best]);
+}
+
+/* ================= MARKERS ================= */
+function avatarIcon() {
+  const src = safeAvatar(state.avatar);
+  const inner = src ? `<img src="${src}" alt="">` : `<div class="ph">${E.person}</div>`;
+  return L.divIcon({ className: '', iconSize: [56, 56], iconAnchor: [28, 28],
+    html: `<div class="avatar-wrap"><span class="pulse"></span><span class="pulse d2"></span>${inner}</div>` });
+}
+const destIcon = L.divIcon({ className: '', iconSize: [36, 36], iconAnchor: [18, 18], html: `<div class="dest-pin">${E.flag}</div>` });
+
+function moveMarker(to) {
+  const from = meMarker.getLatLng(), start = performance.now(), dur = 900;
+  cancelAnimationFrame(moveMarker._raf);
+  const step = t => {
+    const k = Math.min(1, (t - start) / dur);
+    meMarker.setLatLng([from.lat + (to[0] - from.lat) * k, from.lng + (to[1] - from.lng) * k]);
+    if (k < 1) moveMarker._raf = requestAnimationFrame(step);
+  };
+  moveMarker._raf = requestAnimationFrame(step);
+}
+function fitAll() {
+  const pts = [];
+  if (state.location) pts.push([state.location.lat, state.location.lng]);
+  if (state.destination) pts.push([state.destination.destLat, state.destination.destLng]);
+  if (!routeLine && pts.length === 1) return map.setView(pts[0], 14);
+  let b = routeLine ? routeLine.getBounds() : null;
+  pts.forEach(p => b ? b.extend(p) : (b = L.latLngBounds([p, p])));
+  if (b) map.fitBounds(b, { paddingTopLeft: [40, 80], paddingBottomRight: [40, 320] });
+}
+
+/* ================= RENDER ================= */
+function renderAvatar() {
+  if (meMarker) meMarker.setIcon(avatarIcon());
+  const s = safeAvatar(state.avatar); if (s) $('avatarPreview').src = s;
+}
+function renderStatus() {
+  const s = state.status, st = STATUSES.find(x => x.text === s);
+  $('statusText').textContent = s ? `${st ? st.emoji + ' ' : ''}${s}` : 'รอข้อมูล...';
+  document.querySelectorAll('[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === s));
+  renderProgress();
+}
+function renderLocation() {
+  const l = state.location; if (!l) return;
+  const pos = [l.lat, l.lng];
+  if (!meMarker) meMarker = L.marker(pos, { icon: avatarIcon(), zIndexOffset: 1000 }).addTo(map);
+  else moveMarker(pos);
+  if (!fitted) { fitted = true; fitAll(); } else if (followMe) map.panTo(pos);
+  const spd = l.speed || 0;
+  $('speedText').textContent = Math.round(spd);
+  if (spd > 15) avgSpeed = avgSpeed ? avgSpeed * 0.8 + spd * 0.2 : spd;
+  renderUpdated(); renderProgress();
+}
+function renderUpdated() {
+  const l = state.location, el = $('updatedText');
+  if (!l || !l.updatedAt) { el.textContent = 'ยังไม่มีข้อมูลตำแหน่ง'; return; }
+  const sec = Math.max(0, Math.round((serverNow() - l.updatedAt) / 1000));
+  let txt = sec < 15 ? 'อัปเดตเมื่อสักครู่'
+    : sec < 60 ? `อัปเดต ${sec} วินาทีที่แล้ว`
+    : sec < 3600 ? `อัปเดต ${Math.floor(sec / 60)} นาทีที่แล้ว`
+    : `อัปเดต ${Math.floor(sec / 3600)} ชม. ที่แล้ว`;
+  const stale = sec > 180 && state.status !== 'ถึงแล้ว';
+  if (stale) txt += ' · สัญญาณอาจขาดหาย';
+  el.textContent = txt;
+  el.className = 'text-xs ' + (stale ? 'text-amber-500' : 'text-slate-400');
+}
+setInterval(renderUpdated, 10000);
+
+function renderDestination() {
+  const d = state.destination;
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
+  routeCum = null;
+  if (!d) { $('destText').textContent = 'ยังไม่ได้ตั้งจุดหมาย'; renderProgress(); return; }
+  const rc = Array.isArray(d.routeCoords) ? d.routeCoords.filter(p => Array.isArray(p) && p.length === 2) : [];
+  d.routeCoords = rc;
+  if (rc.length > 1) {
+    routeLine = L.polyline(rc, { color: '#a5b4fc', weight: 6, opacity: .9, lineCap: 'round' }).addTo(map);
+    routeCum = buildCum(rc);
+  }
+  destMarker = L.marker([d.destLat, d.destLng], { icon: destIcon }).addTo(map);
+  $('destText').textContent = 'ไป ' + (d.destName || 'จุดหมาย');
+  if (state.location) { fitted = true; fitAll(); }
+  renderProgress();
+}
+function renderProgress() {
+  const d = state.destination, l = state.location;
+  const set = (pct, rem, eta, detail) => {
+    $('progressBar').style.width = pct + '%'; $('pctText').textContent = Math.round(pct) + '%';
+    $('remainText').textContent = rem; $('etaText').textContent = eta; $('etaDetail').textContent = detail;
+  };
+  if (!d || !l) return set(0, '-', '-', '');
+  if (state.status === 'ถึงแล้ว') return set(100, '0', 'ถึงแล้ว', 'ถึงที่หมายเรียบร้อย');
+  const rem = remainingKm([l.lat, l.lng]);
+  const total = Math.max(d.totalDistanceKm || 0, rem, 0.1);
+  const pct = Math.max(0, Math.min(100, (1 - rem / total) * 100));
+  const spd = avgSpeed || FALLBACK_SPEED;
+  const mins = Math.round(rem / spd * 60);
+  const hhmm = new Date(Date.now() + mins * 60000).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const dur = mins < 60 ? `${mins} นาที` : `${Math.floor(mins / 60)} ชม. ${mins % 60} นาที`;
+  set(pct, rem < 10 ? rem.toFixed(1) : Math.round(rem), hhmm, `อีกประมาณ ${dur} (ความเร็วเฉลี่ย ${Math.round(spd)} km/h)`);
+}
+
+/* ================= STICKERS ================= */
+function popSticker(s) {
+  const el = document.createElement('div'); el.className = 'sticker-pop';
+  const em = document.createElement('div'); em.className = 'text-7xl'; em.textContent = s.emoji;
+  const tx = document.createElement('div');
+  tx.className = 'mt-2 bg-white/95 rounded-full shadow-lg px-5 py-2 text-lg font-medium text-pink-500 whitespace-nowrap';
+  tx.textContent = s.text;
+  el.append(em, tx); document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+}
+function buildStickers() {
+  const box = $('stickerBtns');
+  STICKERS.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'rounded-2xl bg-pink-50 hover:bg-pink-100 active:scale-95 transition py-2.5 flex flex-col items-center';
+    b.innerHTML = `<span class="text-2xl">${s.emoji}</span><span class="text-[11px] text-slate-500 mt-0.5">${s.text}</span>`;
+    b.onclick = () => sendSticker(s);
+    box.appendChild(b);
+  });
+}
+let lastSticker = 0;
+async function sendSticker(s) {
+  if (Date.now() - lastSticker < 3000) return toast('ส่งถี่ไปนิด รอแป๊บนะ');
+  lastSticker = Date.now();
+  try {
+    await ensureAuth();
+    await tripRef.child('sticker').set({ emoji: s.emoji, text: s.text, timestamp: TS });
+    toast('ส่งแล้ว!');
+  } catch (e) { toast('ส่งไม่สำเร็จ ลองใหม่อีกครั้ง'); }
+}
+
+/* ================= REALTIME LISTENERS ================= */
+let stickerReady = false;
+tripRef.child('avatar').on('value', s => { state.avatar = s.val(); renderAvatar(); });
+tripRef.child('status').on('value', s => { state.status = s.val(); renderStatus(); });
+tripRef.child('location').on('value', s => { state.location = s.val(); renderLocation(); });
+tripRef.child('destination').on('value', s => { state.destination = s.val(); renderDestination(); });
+tripRef.child('sticker').on('value', s => {
+  const v = s.val();
+  if (!stickerReady) { stickerReady = true; return; }   // ไม่เด้งสติกเกอร์เก่าตอนเปิดหน้า
+  if (v && v.emoji) popSticker(v);
+});
+
+/* ================= UI COMMON ================= */
+$('handle').onclick = () => $('sheetBody').classList.toggle('hidden');
+function setFollow(on) {
+  followMe = on; $('followBtn').textContent = on ? 'ตามหมุด: เปิด' : 'ตามหมุด: ปิด';
+  if (on && state.location) map.panTo([state.location.lat, state.location.lng]);
+}
+$('followBtn').onclick = () => setFollow(!followMe);
+map.on('dragstart', () => { if (followMe) setFollow(false); });
+
+/* ================= AUTH ================= */
+async function ensureAuth() {
+  if (auth.currentUser) return auth.currentUser;
+  const c = await auth.signInAnonymously(); return c.user;
+}
+
+/* ================= DRIVER ================= */
+async function dw(path, val) {
+  try { await tripRef.child(path).set(val); return true; }
+  catch (e) {
+    const denied = String(e && (e.code || e.message)).toLowerCase().includes('permission');
+    toast(denied ? 'ไม่มีสิทธิ์เขียนข้อมูล (ยังไม่ได้ปลดล็อก PIN?)' : 'บันทึกไม่สำเร็จ');
+    return false;
+  }
+}
+function setBtn(id, on, onText, offText) { const b = $(id); b.textContent = on ? onText : offText; b.classList.toggle('on', on); }
+
+function resizeImage(file) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = 150, c = document.createElement('canvas'); c.width = c.height = s;
+      const m = Math.min(img.width, img.height);
+      c.getContext('2d').drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, s, s);
+      URL.revokeObjectURL(img.src);
+      res(c.toDataURL('image/jpeg', 0.82));
     };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+function getPositionOnce() {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(p => res([p.coords.latitude, p.coords.longitude]), () => res(null),
+      { enableHighAccuracy: true, timeout: 8000 });
+  });
+}
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+let routing = false;
+async function setDestination(lat, lng, name) {
+  if (routing) return; routing = true;
+  toast('กำลังคำนวณเส้นทาง...', 10000);
+  try {
+    let start = state.location ? [state.location.lat, state.location.lng] : await getPositionOnce();
+    if (!start) start = DEFAULT_CENTER;
+    let coords, km;
+    try {
+      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${lng},${lat}?overview=full&geometries=geojson`);
+      const j = await r.json();
+      if (j.code !== 'Ok') throw new Error('no route');
+      coords = j.routes[0].geometry.coordinates.map(c => [+c[1].toFixed(5), +c[0].toFixed(5)]);
+      km = j.routes[0].distance / 1000;
+    } catch (e) {
+      coords = [start, [lat, lng]]; km = hav(start, [lat, lng]);
+      toast('หาเส้นทางถนนไม่ได้ ใช้เส้นตรงแทน');
+    }
+    if (!state.location) await dw('location', { lat: start[0], lng: start[1], speed: 0, updatedAt: TS });
+    const ok = await dw('destination', {
+      destLat: +lat.toFixed(6), destLng: +lng.toFixed(6), destName: String(name).slice(0, 80),
+      totalDistanceKm: +km.toFixed(1), routeCoords: downsample(coords, 400)
+    });
+    if (ok) toast(`ตั้งจุดหมาย: ${name} (${km.toFixed(1)} กม.)`);
+  } finally { routing = false; }
+}
 
-    const defaultCoords = [7.1897, 100.5954];
-    const map = L.map('map', { zoomControl: false }).setView(defaultCoords, 13);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
-    }).addTo(map);
+/* --- GPS + Wake Lock --- */
+let watchId = null, lastSent = 0, prevFix = null, wakeLock = null;
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  } catch (e) { console.warn('WakeLock:', e); }
+}
+function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && (watchId !== null || demoTimer)) requestWakeLock();
+});
 
-    let currentAvatarUrl = localStorage.getItem('custom_avatar') || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Cha';
-    document.getElementById('preview-avatar').src = currentAvatarUrl;
+function onFix(p) {
+  const t = Date.now(), c = p.coords;
+  if (t - lastSent < GPS_INTERVAL_MS) return;
+  if (c.accuracy && c.accuracy > 500) return;           // ตัดค่าที่คลาดเคลื่อนมาก
+  const pos = [c.latitude, c.longitude];
+  let kmh = (c.speed != null && !isNaN(c.speed)) ? c.speed * 3.6 : null;
+  if (kmh === null && prevFix) { const dt = (t - prevFix.t) / 3600000; if (dt > 0) kmh = hav(prevFix.pos, pos) / dt; }
+  prevFix = { pos, t }; lastSent = t;
+  dw('location', { lat: +pos[0].toFixed(6), lng: +pos[1].toFixed(6), speed: Math.round(kmh || 0),
+    accuracy: Math.round(c.accuracy || 0), updatedAt: TS });
+}
+function startGPS() {
+  if (!navigator.geolocation) return toast('อุปกรณ์นี้ไม่รองรับ GPS');
+  if (demoTimer) stopDemo();
+  lastSent = 0;
+  watchId = navigator.geolocation.watchPosition(onFix, err => toast('GPS: ' + err.message),
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  requestWakeLock();
+  setBtn('gpsBtn', true, 'หยุดแชร์ GPS', 'เริ่มแชร์ GPS');
+  toast('เริ่มแชร์ตำแหน่งแล้ว เปิดหน้านี้ค้างไว้นะ');
+}
+function stopGPS() {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null; prevFix = null; releaseWakeLock();
+  setBtn('gpsBtn', false, 'หยุดแชร์ GPS', 'เริ่มแชร์ GPS');
+}
 
-    function createAvatarIcon(imgUrl) {
-      return L.divIcon({
-        className: 'custom-div-icon',
-        html: '<div style="position:relative; width:50px; height:50px;"><div class="avatar-pulse"></div><div class="avatar-marker" style="width:50px; height:50px; background-image:url(\'' + imgUrl + '\');"></div></div>',
-        iconSize: [50, 50], iconAnchor: [25, 25]
+/* --- Demo simulation --- */
+let demoTimer = null;
+async function startDemo() {
+  if (watchId !== null) stopGPS();
+  const hasRoute = () => state.destination && Array.isArray(state.destination.routeCoords) && state.destination.routeCoords.length > 1;
+  if (!hasRoute()) await setDestination(DEMO_DEST.lat, DEMO_DEST.lng, DEMO_DEST.name + ' (เดโม)');
+  if (!hasRoute()) return toast('ยังไม่มีเส้นทางให้ทดลองวิ่ง');
+  const rc = state.destination.routeCoords, cum = buildCum(rc), total = cum[cum.length - 1];
+  const step = total / DEMO_SECONDS;
+  let traveled = 0;
+  dw('status', 'กำลังเดินทาง');
+  requestWakeLock();
+  setBtn('demoBtn', true, 'หยุดทดลอง', 'ทดลองวิ่ง');
+  demoTimer = setInterval(() => {
+    traveled = Math.min(total, traveled + step);
+    const p = pointAt(rc, cum, traveled);
+    dw('location', { lat: +p[0].toFixed(6), lng: +p[1].toFixed(6), speed: Math.round(70 + Math.random() * 30), updatedAt: TS });
+    if (traveled >= total) { stopDemo(); dw('status', 'ถึงแล้ว'); toast('ถึงที่หมายแล้ว (เดโม)'); }
+  }, 1000);
+}
+function stopDemo() {
+  clearInterval(demoTimer); demoTimer = null;
+  if (watchId === null) releaseWakeLock();
+  setBtn('demoBtn', false, 'หยุดทดลอง', 'ทดลองวิ่ง');
+}
+
+/* --- Pick on map --- */
+let pickMode = false;
+function updatePick() {
+  setBtn('pickBtn', pickMode, 'แตะบนแผนที่ได้เลย (กดเพื่อยกเลิก)', 'แตะแผนที่เพื่อปักหมุด');
+  map.getContainer().style.cursor = pickMode ? 'crosshair' : '';
+}
+
+function buildStatusBtns() {
+  const box = $('statusBtns');
+  STATUSES.forEach(s => {
+    const b = document.createElement('button');
+    b.dataset.status = s.text;
+    b.className = 'chip rounded-xl bg-slate-100 text-slate-600 py-2.5 flex flex-col items-center transition';
+    b.innerHTML = `<span class="text-xl">${s.emoji}</span><span class="text-xs mt-0.5">${s.text}</span>`;
+    b.onclick = () => dw('status', s.text);
+    box.appendChild(b);
+  });
+  renderStatus();
+}
+
+function bindDriver() {
+  $('avatarInput').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try { const data = await resizeImage(f); if (await dw('avatar', data)) toast('อัปเดตรูปอวตารแล้ว'); }
+    catch (err) { toast('อ่านไฟล์รูปไม่ได้'); }
+    e.target.value = '';
+  };
+
+  $('searchForm').onsubmit = async e => {
+    e.preventDefault();
+    const q = $('searchInput').value.trim(); if (!q) return;
+    const box = $('searchResults'); box.textContent = 'กำลังค้นหา...';
+    try {
+      // countrycodes=th จำกัดผลในไทย ถ้าเดินทางต่างประเทศให้ลบพารามิเตอร์นี้ออก
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=th&countrycodes=th&q=${encodeURIComponent(q)}`;
+      const list = await (await fetch(url)).json();
+      box.innerHTML = '';
+      if (!list.length) { box.textContent = 'ไม่พบสถานที่'; return; }
+      list.forEach(p => {
+        const name = p.name || p.display_name.split(',')[0];
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'w-full text-left rounded-xl px-3 py-2 hover:bg-slate-50 border border-slate-100';
+        const t1 = document.createElement('div'); t1.className = 'text-slate-700'; t1.textContent = name;
+        const t2 = document.createElement('div'); t2.className = 'text-[11px] text-slate-400 truncate'; t2.textContent = p.display_name;
+        b.append(t1, t2);
+        b.onclick = () => { box.innerHTML = ''; $('searchInput').value = name; setDestination(+p.lat, +p.lon, name); };
+        box.appendChild(b);
       });
-    }
+    } catch (err) { box.textContent = 'ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง'; }
+  };
 
-    const destIcon = L.divIcon({
-      className: 'dest-icon',
-      html: '<div style="font-size: 32px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));">&#127937;</div>',
-      iconSize: [32, 32], iconAnchor: [10, 30]
-    });
+  $('pickBtn').onclick = () => { pickMode = !pickMode; updatePick(); };
+  map.on('click', async e => {
+    if (!pickMode) return;
+    pickMode = false; updatePick();
+    const { lat, lng } = e.latlng;
+    let name = 'จุดที่ปักหมุด';
+    try {
+      const j = await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=th&zoom=14&lat=${lat}&lon=${lng}`)).json();
+      const a = j.address || {};
+      name = j.name || a.village || a.town || a.city || a.county || a.state || (j.display_name || '').split(',')[0] || name;
+    } catch (err) {}
+    setDestination(lat, lng, name);
+  });
 
-    let marker = L.marker(defaultCoords, { icon: createAvatarIcon(currentAvatarUrl), zIndexOffset: 1000 }).addTo(map);
-    let destMarker = null;
-    let plannedRouteLine = L.polyline([], { color: '#94A3B8', weight: 5, opacity: 0.45, dashArray: '8, 8' }).addTo(map);
-    let activeRouteLine = L.polyline([], { color: '#6366F1', weight: 5, opacity: 0.85 }).addTo(map);
-    let tripData = { destLat: null, destLng: null, destName: '', totalDistanceKm: 0, routeCoords: [] };
+  $('clearDestBtn').onclick = () => { if (confirm('ล้างจุดหมายและเส้นทาง?')) dw('destination', null); };
+  $('gpsBtn').onclick = () => watchId !== null ? stopGPS() : startGPS();
+  $('demoBtn').onclick = () => demoTimer ? stopDemo() : startDemo();
+}
 
-    map.on('click', function(e) {
-      if (currentMode !== 'driver') return;
-      setDestination(e.latlng.lat, e.latlng.lng, 'จุดหมาย (' + e.latlng.lat.toFixed(3) + ', ' + e.latlng.lng.toFixed(3) + ')');
-    });
+function showPin() { $('pinModal').classList.remove('hidden'); setTimeout(() => $('pinInput').focus(), 100); }
+$('pinForm').onsubmit = async e => {
+  e.preventDefault();
+  const pin = $('pinInput').value.trim(); if (!pin) return;
+  $('pinError').textContent = '';
+  try {
+    const u = await ensureAuth();
+    await db.ref('drivers/' + u.uid).set(pin);       // Rules ตรวจ PIN ฝั่งเซิร์ฟเวอร์
+    $('pinModal').classList.add('hidden');
+    toast('ปลดล็อกโหมดคนขับแล้ว');
+  } catch (err) {
+    $('pinError').textContent = 'รหัสไม่ถูกต้อง'; $('pinInput').value = '';
+  }
+};
 
-    async function searchDestination() {
-      const query = document.getElementById('dest-input').value.trim();
-      if (!query) return;
-      try {
-        const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&countrycodes=th&limit=1');
-        const data = await res.json();
-        if (data && data.length > 0) {
-          setDestination(parseFloat(data[0].lat), parseFloat(data[0].lon), data[0].display_name.split(',')[0]);
-          document.getElementById('dest-input').value = '';
-        } else { alert('ไม่พบสถานที่นี้ ลองแตะจิ้มบนแผนที่ได้เลยค่ะ'); }
-      } catch (err) { alert('ค้นหาไม่สำเร็จ'); }
-    }
+async function initDriver() {
+  $('modeBadge').classList.remove('hidden');
+  $('viewerPanel').classList.add('hidden');
+  $('driverPanel').classList.remove('hidden');
+  buildStatusBtns(); bindDriver();
+  try {
+    const u = await ensureAuth();
+    const s = await db.ref('drivers/' + u.uid).get();
+    if (!s.exists()) showPin();
+  } catch (e) { showPin(); }
+}
 
-    async function setDestination(destLat, destLng, destName) {
-      const cur = marker.getLatLng();
-      let routeCoords = [[cur.lat, cur.lng], [destLat, destLng]];
-      let totalDistKm = calculateHaversine(cur.lat, cur.lng, destLat, destLng);
-      try {
-        const res = await fetch('https://router.project-osrm.org/route/v1/driving/' + cur.lng + ',' + cur.lat + ';' + destLng + ',' + destLat + '?overview=full&geometries=geojson');
-        const data = await res.json();
-        if (data.routes && data.routes.length > 0) {
-          totalDistKm = data.routes[0].distance / 1000;
-          routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-        }
-      } catch (e) {}
-      const meta = { startLat: cur.lat, startLng: cur.lng, destLat, destLng, destName, totalDistanceKm: totalDistKm, routeCoords };
-      db.ref('trip/destination').set(meta);
-      applyDestinationUI(meta);
-      fitRouteBounds();
-    }
-
-    function applyDestinationUI(meta) {
-      if (!meta || !meta.destLat) {
-        if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
-        plannedRouteLine.setLatLngs([]);
-        document.getElementById('dest-label').innerText = 'ยังไม่ได้ตั้งจุดหมายปลายทาง';
-        document.getElementById('progress-section').classList.add('hidden');
-        tripData.destLat = null;
-        return;
-      }
-      tripData = meta;
-      if (!destMarker) destMarker = L.marker([meta.destLat, meta.destLng], { icon: destIcon }).addTo(map);
-      else destMarker.setLatLng([meta.destLat, meta.destLng]);
-      if (meta.routeCoords) plannedRouteLine.setLatLngs(meta.routeCoords);
-      document.getElementById('dest-label').innerText = 'ไป: ' + meta.destName;
-      document.getElementById('progress-section').classList.remove('hidden');
-      const cur = marker.getLatLng();
-      updateProgressUI(cur.lat, cur.lng);
-    }
-
-    function clearDestination() {
-      db.ref('trip/destination').remove();
-      activeRouteLine.setLatLngs([]);
-      applyDestinationUI(null);
-    }
-
-    function calculateHaversine(lat1, lon1, lat2, lon2) {
-      const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    function updateProgressUI(curLat, curLng) {
-      if (!tripData.destLat || !tripData.totalDistanceKm) return;
-      const straightRem = calculateHaversine(curLat, curLng, tripData.destLat, tripData.destLng);
-      const remKm = Math.min(tripData.totalDistanceKm, straightRem * 1.2);
-      let percent = straightRem < 0.15 ? 100 : Math.round(((tripData.totalDistanceKm - remKm) / tripData.totalDistanceKm) * 100);
-      percent = Math.max(0, Math.min(100, percent));
-      const mins = Math.round((remKm / 65) * 60);
-      document.getElementById('progress-percent').innerText = 'เดินทางแล้ว ' + percent + '%';
-      document.getElementById('progress-bar').style.width = percent + '%';
-      document.getElementById('remaining-info').innerText = percent === 100 ? 'ถึงจุดหมายแล้ว!' : 'เหลือ ' + remKm.toFixed(1) + ' กม. (~' + mins + ' นาที)';
-    }
-
-    function handleAvatarUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.createElement('canvas');
-          canvas.width = 150; canvas.height = 150;
-          const ctx = canvas.getContext('2d');
-          const minSide = Math.min(img.width, img.height);
-          ctx.drawImage(img, (img.width - minSide)/2, (img.height - minSide)/2, minSide, minSide, 0, 0, 150, 150);
-          const base64 = canvas.toDataURL('image/jpeg', 0.8);
-          localStorage.setItem('custom_avatar', base64);
-          document.getElementById('preview-avatar').src = base64;
-          marker.setIcon(createAvatarIcon(base64));
-          db.ref('trip/avatar').set(base64);
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    let watchId = null, wakeLock = null, isTracking = false, traveledPath = [];
-    async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
-
-    function toggleTracking() {
-      const btn = document.getElementById('btn-share-gps');
-      if (!isTracking) {
-        if (!navigator.geolocation) return alert("ไม่รองรับ GPS");
-        isTracking = true; requestWakeLock();
-        btn.innerHTML = "&#9209; หยุดแชร์ตำแหน่ง"; btn.classList.replace('bg-indigo-500', 'bg-rose-500');
-        updateTripStatus('กำลังเดินทาง');
-        watchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            const speedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
-            updateLocationUI(pos.coords.latitude, pos.coords.longitude, speedKmh, Date.now());
-            db.ref('trip/location').set({ lat: pos.coords.latitude, lng: pos.coords.longitude, speed: speedKmh, updatedAt: Date.now() });
-          },
-          () => alert("กรุณาอนุญาต GPS"), { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-        );
-      } else {
-        isTracking = false; if (watchId) navigator.geolocation.clearWatch(watchId); if (wakeLock) wakeLock.release();
-        btn.innerHTML = "&#128205; เริ่มแชร์ตำแหน่งสด"; btn.classList.replace('bg-rose-500', 'bg-indigo-500');
-        updateTripStatus('หยุดแชร์ตำแหน่งชั่วคราว');
-      }
-    }
-
-    function updateLocationUI(lat, lng, speed, timestamp) {
-      const pos = [lat, lng];
-      marker.setLatLng(pos); traveledPath.push(pos); activeRouteLine.setLatLngs(traveledPath); map.panTo(pos);
-      updateProgressUI(lat, lng);
-      document.getElementById('speed-display').innerText = speed;
-      const t = timestamp ? new Date(timestamp) : new Date();
-      document.getElementById('last-update').innerText = 'อัปเดตเมื่อ ' + t.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping";
-    }
-
-    function updateTripStatus(s) { document.getElementById('status-text').innerText = s; db.ref('trip/status').set(s); }
-    function sendSticker(emoji, text) { showStickerToast(emoji, text); db.ref('trip/sticker').set({ emoji, text, timestamp: Date.now() }); }
-    function showStickerToast(emoji, text) {
-      const el = document.createElement('div');
-      el.className = 'sticker-toast bg-white/95 backdrop-blur-md px-6 py-4 rounded-3xl shadow-xl border border-indigo-100 text-center';
-      el.innerHTML = '<div class="text-4xl mb-1">' + emoji + '</div><div class="text-sm font-medium text-slate-700">' + text + '</div>';
-      document.getElementById('sticker-container').appendChild(el);
-      setTimeout(() => el.remove(), 3600);
-    }
-
-    db.ref('trip/location').on('value', (s) => { if (s.val() && currentMode === 'viewer') updateLocationUI(s.val().lat, s.val().lng, s.val().speed, s.val().updatedAt); });
-    db.ref('trip/destination').on('value', (s) => applyDestinationUI(s.val()));
-    db.ref('trip/status').on('value', (s) => { if (s.val()) document.getElementById('status-text').innerText = s.val(); });
-    db.ref('trip/avatar').on('value', (s) => { if (s.val()) { document.getElementById('preview-avatar').src = s.val(); marker.setIcon(createAvatarIcon(s.val())); } });
-    db.ref('trip/sticker').on('value', (s) => { if (s.val() && (Date.now() - s.val().timestamp < 5000)) showStickerToast(s.val().emoji, s.val().text); });
-
-    let currentMode = 'viewer';
-    function setMode(mode) {
-      currentMode = mode;
-      const isDriver = mode === 'driver';
-      document.getElementById('btn-mode-driver').className = isDriver ? "px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600" : "px-3 py-1.5 rounded-xl font-medium text-slate-500 transition";
-      document.getElementById('btn-mode-viewer').className = !isDriver ? "px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600" : "px-3 py-1.5 rounded-xl font-medium text-slate-500 transition";
-      document.getElementById('driver-controls').classList.toggle('hidden', !isDriver);
-      document.getElementById('search-box-container').classList.toggle('hidden', !isDriver);
-      document.getElementById('viewer-controls').classList.toggle('hidden', isDriver);
-    }
-
-    function centerMap() { map.panTo(marker.getLatLng()); }
-    function fitRouteBounds() {
-      if (destMarker) map.fitBounds(new L.featureGroup([marker, destMarker]).getBounds().pad(0.25));
-      else centerMap();
-    }
-
-    let demoInterval = null;
-    function startDemoSimulation() {
-      if (demoInterval) { clearInterval(demoInterval); demoInterval = null; return; }
-      updateTripStatus('กำลังเดินทาง (โหมดทดลอง)');
-      if (tripData.routeCoords && tripData.routeCoords.length > 2) {
-        let step = 0;
-        const jump = Math.max(1, Math.floor(tripData.routeCoords.length / 40));
-        demoInterval = setInterval(() => {
-          if (step >= tripData.routeCoords.length) { clearInterval(demoInterval); demoInterval = null; updateTripStatus('ถึงที่หมายแล้ว'); return; }
-          const [lat, lng] = tripData.routeCoords[step];
-          const spd = Math.floor(Math.random() * 20) + 65;
-          updateLocationUI(lat, lng, spd, Date.now());
-          db.ref('trip/location').set({ lat, lng, speed: spd, updatedAt: Date.now() });
-          step += jump;
-        }, 1000);
-      } else {
-        let lat = 7.1897, lng = 100.5954;
-        demoInterval = setInterval(() => {
-          lat -= 0.0012; lng -= 0.0015;
-          const spd = Math.floor(Math.random() * 20) + 65;
-          updateLocationUI(lat, lng, spd, Date.now());
-          db.ref('trip/location').set({ lat, lng, speed: spd, updatedAt: Date.now() });
-        }, 1200);
-      }
-    }
-
-    if (new URLSearchParams(window.location.search).get('mode') === 'driver') setMode('driver');
-  </script>
+if (IS_DRIVER) initDriver();
+else { buildStickers(); ensureAuth().catch(() => {}); }
+</script>
 </body>
 </html>
