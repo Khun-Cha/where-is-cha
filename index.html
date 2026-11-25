@@ -26,11 +26,10 @@
     .avatar-marker {
       border-radius: 50%;
       border: 3px solid #ffffff;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
       background-size: cover;
       background-position: center;
       background-color: #E2E8F0;
-      transition: transform 0.3s ease;
     }
     .avatar-pulse {
       position: absolute;
@@ -55,7 +54,7 @@
       animation: floatUp 3.5s ease-in-out forwards;
     }
     .leaflet-tile-pane {
-      filter: saturate(0.85) brightness(1.02);
+      filter: saturate(0.9) brightness(1.01);
     }
   </style>
 </head>
@@ -65,334 +64,18 @@
   <div id="map"></div>
 
   <!-- แถบด้านบน: สถานะการเดินทาง & สลับโหมด -->
-  <div class="fixed top-4 left-4 right-4 z-20 flex justify-between items-center pointer-events-none">
-    <div class="bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 pointer-events-auto flex items-center gap-2.5">
-      <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
-      <div>
-        <p id="status-text" class="text-xs font-medium text-slate-700">รอเริ่มการเดินทาง</p>
-        <p id="last-update" class="text-[10px] text-slate-400">พร้อมเชื่อมต่อฐานข้อมูลแล้ว</p>
-      </div>
-    </div>
-
-    <div class="bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-sm border border-slate-100 pointer-events-auto flex text-xs">
-      <button id="btn-mode-viewer" onclick="setMode('viewer')" class="px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600">
-        👀 โหมดแฟนดู
-      </button>
-      <button id="btn-mode-driver" onclick="setMode('driver')" class="px-3 py-1.5 rounded-xl font-medium text-slate-500 transition">
-        🚗 โหมดคนขับ
-      </button>
-    </div>
-  </div>
-
-  <!-- ปุ่มโฟกัสตำแหน่ง + อัปโหลดอวตาร + ล้างเส้นทาง -->
-  <div class="fixed top-20 right-4 z-20 flex flex-col gap-2">
-    <button onclick="centerMap()" title="โฟกัสตำแหน่ง" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition">
-      🎯
-    </button>
-    <label for="avatar-upload" title="เปลี่ยนรูปอวตาร" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition cursor-pointer">
-      📷
-    </label>
-    <button onclick="clearRoute()" title="ล้างเส้นทางเก่า" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition text-xs">
-      🧹
-    </button>
-    <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)" />
-  </div>
-
-  <!-- แจ้งเตือนสติกเกอร์ลอยกลางจอ -->
-  <div id="sticker-container" class="fixed inset-0 pointer-events-none z-30 flex items-center justify-center"></div>
-
-  <!-- การ์ดควบคุมด้านล่าง -->
-  <div class="fixed bottom-5 left-4 right-4 z-20 max-w-md mx-auto">
-    <div class="bg-white/95 backdrop-blur-md rounded-3xl p-5 shadow-lg border border-slate-100">
-      
-      <!-- ข้อมูลความเร็วและรูปอวตาร -->
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
-          <div class="relative">
-            <img id="preview-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Cha" alt="Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-100 bg-slate-100" />
-            <label for="avatar-upload" class="absolute -bottom-1 -right-1 bg-indigo-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center cursor-pointer shadow">
-              ✎
-            </label>
-          </div>
-          <div>
-            <h2 class="text-sm font-semibold text-slate-800">คุณชา</h2>
-            <p id="trip-note" class="text-xs text-slate-400">แตะรูปดินสอเพื่อเปลี่ยนรูปอวตาร</p>
-          </div>
-        </div>
-
-        <div class="text-right bg-slate-50 px-3 py-1.5 rounded-2xl border border-slate-100">
-          <span id="speed-display" class="text-lg font-semibold text-indigo-600">0</span>
-          <span class="text-[10px] text-slate-400 block -mt-1">km/h</span>
+  <div class="fixed top-4 left-4 right-4 z-20 flex flex-col gap-2 pointer-events-none">
+    <div class="flex justify-between items-center">
+      <div class="bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 pointer-events-auto flex items-center gap-2.5">
+        <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+        <div>
+          <p id="status-text" class="text-xs font-medium text-slate-700">รอเริ่มการเดินทาง</p>
+          <p id="last-update" class="text-[10px] text-slate-400">พร้อมเชื่อมต่อฐานข้อมูลแล้ว</p>
         </div>
       </div>
 
-      <!-- ส่วนควบคุมสำหรับ "โหมดคนขับ" (คุณชา) -->
-      <div id="driver-controls" class="hidden space-y-2.5">
-        <div class="grid grid-cols-3 gap-2 text-xs">
-          <button onclick="updateTripStatus('กำลังเดินทาง 🚗')" class="py-2 rounded-xl bg-emerald-50 text-emerald-600 font-medium hover:bg-emerald-100 transition">กำลังขับรถ</button>
-          <button onclick="updateTripStatus('แวะพักแป๊บนึง ☕')" class="py-2 rounded-xl bg-amber-50 text-amber-600 font-medium hover:bg-amber-100 transition">แวะพักรถ</button>
-          <button onclick="updateTripStatus('ถึงที่หมายแล้ว 🎉')" class="py-2 rounded-xl bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition">ถึงแล้ว!</button>
-        </div>
-
-        <div class="flex gap-2">
-          <button id="btn-share-gps" onclick="toggleTracking()" class="flex-1 py-3 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium shadow-sm transition active:scale-98">
-            📍 เริ่มแชร์ตำแหน่งสด
-          </button>
-          <button onclick="startDemoSimulation()" class="px-3 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition">
-            ทดลองวิ่ง
-          </button>
-        </div>
-      </div>
-
-      <!-- ส่วนควบคุมสำหรับ "โหมดแฟนดู" -->
-      <div id="viewer-controls" class="space-y-2">
-        <p class="text-[11px] text-slate-400 text-center">ส่งกำลังใจให้คุณชา (เด้งขึ้นหน้าจอทันที)</p>
-        <div class="grid grid-cols-4 gap-2">
-          <button onclick="sendSticker('❤️', 'คิดถึงนะ!')" class="py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium transition active:scale-95">❤️ คิดถึง</button>
-          <button onclick="sendSticker('🚗💨', 'ขับรถดีๆ นะ')" class="py-2 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-600 text-xs font-medium transition active:scale-95">🚗 ขับดีๆ</button>
-          <button onclick="sendSticker('☕', 'แวะพักบ้างนะ')" class="py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-medium transition active:scale-95">☕ พักบ้าง</button>
-          <button onclick="sendSticker('🎉', 'ถึงแล้วบอกด้วย')" class="py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-xs font-medium transition active:scale-95">🎉 ถึงแล้วบอก</button>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-    // ==========================================
-    // 1. ตั้งค่า FIREBASE (เชื่อมต่อโปรเจกต์ where-is-cha เรียบร้อยแล้ว)
-    // ==========================================
-    const firebaseConfig = {
-      apiKey: "AIzaSyBOpV9UvLKSVFySYhuCUeLrIT-8OIHL9fE",
-      authDomain: "where-is-cha.firebaseapp.com",
-      databaseURL: "https://where-is-cha-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "where-is-cha",
-      storageBucket: "where-is-cha.firebasestorage.app",
-      messagingSenderId: "1007262654950",
-      appId: "1:1007262654950:web:d4bc25cf1b4df5730ab627",
-      measurementId: "G-DVTGV1R30Y"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // ==========================================
-    // 2. ตั้งค่าแผนที่ Leaflet (สไตล์มินิมอล)
-    // ==========================================
-    const defaultCoords = [7.1897, 100.5954]; // พิกัดเริ่มต้น (สงขลา)
-    const map = L.map('map', { zoomControl: false }).setView(defaultCoords, 13);
-
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      maxZoom: 19
-    }).addTo(map);
-
-    let currentAvatarUrl = localStorage.getItem('custom_avatar') || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Cha';
-    document.getElementById('preview-avatar').src = currentAvatarUrl;
-
-    function createAvatarIcon(imgUrl) {
-      return L.divIcon({
-        className: 'custom-div-icon',
-        html: `
-          <div style="position:relative; width:50px; height:50px;">
-            <div class="avatar-pulse"></div>
-            <div class="avatar-marker" style="width:50px; height:50px; background-image:url('${imgUrl}');"></div>
-          </div>
-        `,
-        iconSize: [50, 50],
-        iconAnchor: [25, 25]
-      });
-    }
-
-    let marker = L.marker(defaultCoords, { icon: createAvatarIcon(currentAvatarUrl) }).addTo(map);
-    let pathCoordinates = [];
-    let routeLine = L.polyline([], { color: '#6366F1', weight: 4, opacity: 0.7, dashArray: '6, 8' }).addTo(map);
-
-    // ==========================================
-    // 3. ระบบอัปโหลดและย่อขนาดรูปอวตารอัตโนมัติ
-    // ==========================================
-    function handleAvatarUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.createElement('canvas');
-          const size = 150;
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-
-          const minSide = Math.min(img.width, img.height);
-          const sx = (img.width - minSide) / 2;
-          const sy = (img.height - minSide) / 2;
-
-          ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-
-          currentAvatarUrl = compressedBase64;
-          localStorage.setItem('custom_avatar', compressedBase64);
-          document.getElementById('preview-avatar').src = compressedBase64;
-          marker.setIcon(createAvatarIcon(compressedBase64));
-
-          db.ref('trip/avatar').set(compressedBase64);
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // ==========================================
-    // 4. ระบบติดตามพิกัด GPS & Wake Lock (กันจอดับ)
-    // ==========================================
-    let watchId = null;
-    let wakeLock = null;
-    let isTracking = false;
-
-    async function requestWakeLock() {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLock = await navigator.wakeLock.request('screen');
-        }
-      } catch (err) { console.log('WakeLock:', err); }
-    }
-
-    function toggleTracking() {
-      const btn = document.getElementById('btn-share-gps');
-      if (!isTracking) {
-        if (!navigator.geolocation) {
-          alert("เบราว์เซอร์ของคุณไม่รองรับ GPS");
-          return;
-        }
-        isTracking = true;
-        requestWakeLock();
-        btn.innerText = "⏹ หยุดแชร์ตำแหน่ง";
-        btn.classList.replace('bg-indigo-500', 'bg-rose-500');
-        updateTripStatus('กำลังเดินทาง 🚗');
-
-        watchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const speedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
-            
-            updateLocationUI(lat, lng, speedKmh, Date.now());
-
-            db.ref('trip/location').set({
-              lat: lat,
-              lng: lng,
-              speed: speedKmh,
-              updatedAt: Date.now()
-            });
-          },
-          (err) => alert("กรุณาอนุญาตการเข้าถึงตำแหน่ง (GPS) ในตั้งค่าเบราว์เซอร์"),
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-        );
-      } else {
-        isTracking = false;
-        if (watchId) navigator.geolocation.clearWatch(watchId);
-        if (wakeLock) wakeLock.release();
-        btn.innerText = "📍 เริ่มแชร์ตำแหน่งสด";
-        btn.classList.replace('bg-rose-500', 'bg-indigo-500');
-        updateTripStatus('หยุดแชร์ตำแหน่งชั่วคราว');
-      }
-    }
-
-    function updateLocationUI(lat, lng, speed, timestamp) {
-      const newLatLng = [lat, lng];
-      marker.setLatLng(newLatLng);
-      pathCoordinates.push(newLatLng);
-      routeLine.setLatLngs(pathCoordinates);
-      map.panTo(newLatLng);
-
-      document.getElementById('speed-display').innerText = speed;
-      const timeObj = timestamp ? new Date(timestamp) : new Date();
-      document.getElementById('last-update').innerText = `อัปเดตเมื่อ ${timeObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-      document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping";
-    }
-
-    function updateTripStatus(statusText) {
-      document.getElementById('status-text').innerText = statusText;
-      db.ref('trip/status').set(statusText);
-    }
-
-    function clearRoute() {
-      pathCoordinates = [];
-      routeLine.setLatLngs([]);
-    }
-
-    // ==========================================
-    // 5. ระบบส่งสติกเกอร์กำลังใจ & ฟังข้อมูล Real-time
-    // ==========================================
-    function sendSticker(emoji, text) {
-      showStickerToast(emoji, text);
-      db.ref('trip/sticker').set({ emoji, text, timestamp: Date.now() });
-    }
-
-    function showStickerToast(emoji, text) {
-      const container = document.getElementById('sticker-container');
-      const el = document.createElement('div');
-      el.className = 'sticker-toast bg-white/95 backdrop-blur-md px-6 py-4 rounded-3xl shadow-xl border border-indigo-100 text-center';
-      el.innerHTML = `<div class="text-4xl mb-1">${emoji}</div><div class="text-sm font-medium text-slate-700">${text}</div>`;
-      container.appendChild(el);
-      setTimeout(() => el.remove(), 3600);
-    }
-
-    // ซิงก์ข้อมูลจาก Firebase แบบ Real-time
-    db.ref('trip/location').on('value', (snap) => {
-      const data = snap.val();
-      if (data && currentMode === 'viewer') {
-        updateLocationUI(data.lat, data.lng, data.speed, data.updatedAt);
-      }
-    });
-
-    db.ref('trip/status').on('value', (snap) => {
-      if (snap.val()) document.getElementById('status-text').innerText = snap.val();
-    });
-
-    db.ref('trip/avatar').on('value', (snap) => {
-      if (snap.val()) {
-        document.getElementById('preview-avatar').src = snap.val();
-        marker.setIcon(createAvatarIcon(snap.val()));
-      }
-    });
-
-    db.ref('trip/sticker').on('value', (snap) => {
-      const data = snap.val();
-      if (data && (Date.now() - data.timestamp < 5000)) {
-        showStickerToast(data.emoji, data.text);
-      }
-    });
-
-    // ==========================================
-    // 6. การสลับโหมด & โหมดทดลองวิ่ง (Demo)
-    // ==========================================
-    let currentMode = 'viewer';
-    function setMode(mode) {
-      currentMode = mode;
-      const btnViewer = document.getElementById('btn-mode-viewer');
-      const btnDriver = document.getElementById('btn-mode-driver');
-      
-      if (mode === 'driver') {
-        btnDriver.className = "px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600";
-        btnViewer.className = "px-3 py-1.5 rounded-xl font-medium text-slate-500 transition";
-        document.getElementById('driver-controls').classList.remove('hidden');
-        document.getElementById('viewer-controls').classList.add('hidden');
-      } else {
-        btnViewer.className = "px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600";
-        btnDriver.className = "px-3 py-1.5 rounded-xl font-medium text-slate-500 transition";
-        document.getElementById('viewer-controls').classList.remove('hidden');
-        document.getElementById('driver-controls').classList.add('hidden');
-      }
-    }
-
-    function centerMap() {
-      map.panTo(marker.getLatLng());
-    }
-
-    let demoInterval = null;
-    function startDemoSimulation() {
-      if (demoInterval) { clearInterval(demoInterval); demoInterval = null; return; }
-      updateTrip
+      <div class="bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-sm border border-slate-100 pointer-events-auto flex text-xs">
+        <button id="btn-mode-viewer" onclick="setMode('viewer')" class="px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600">
+          👀 โหมดแฟนดู
+        </button>
+        <button id="btn-mode-driver" onclick="setMode('driver')" class="px-3 py-1.5 rounded-xl font-medium text-slate
