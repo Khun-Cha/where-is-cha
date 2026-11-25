@@ -40,82 +40,68 @@
     100% { transform: translate(-50%, -110%); opacity: 0; }
   }
   .leaflet-control-attribution { font-size: 10px; }
-</style>
-    .map-search-ui {
+  .map-search-ui {
     position: fixed;
     z-index: 1100;
     top: max(68px, calc(env(safe-area-inset-top) + 60px));
     left: 50%;
     transform: translateX(-50%);
-    width: min(560px, calc(100vw - 28px));
+    width: min(440px, calc(100vw - 24px));
   }
-  .map-search-results:empty {
-    display: none;
-  }
+  .map-search-results:empty { display: none; }
   .map-search-result {
-    display: block;
-    width: 100%;
-    padding: 10px 14px;
-    border: 0;
-    border-bottom: 1px solid #f1f5f9;
-    background: white;
-    text-align: left;
-    cursor: pointer;
+    display: block; width: 100%; padding: 10px 14px; border: 0;
+    border-bottom: 1px solid #f1f5f9; background: white; text-align: left; cursor: pointer;
   }
-  .map-search-result:hover {
-    background: #f8fafc;
-  }
+  .map-search-result:hover { background: #f8fafc; }
   .my-location-dot {
-    width: 20px;
-    height: 20px;
-    border: 3px solid white;
-    border-radius: 50%;
-    background: #4285f4;
-    box-shadow: 0 1px 6px rgba(0,0,0,.45);
+    width: 20px; height: 20px; border: 3px solid white; border-radius: 50%;
+    background: #4285f4; box-shadow: 0 1px 6px rgba(0,0,0,.45);
   }
+</style>
 </head>
 <body>
 <div id="map"></div>
-  <div class="map-search-ui">
-  <form id="mapSearchForm" class="flex gap-2 rounded-full bg-white p-1.5 shadow-lg">
+
+<!-- Top bar + Mode Switcher -->
+<div class="fixed top-0 inset-x-0 z-[1200] p-3 flex justify-between items-center pointer-events-none" style="padding-top:max(12px,env(safe-area-inset-top))">
+  <div class="pointer-events-auto inline-flex items-center gap-2 bg-white/95 backdrop-blur rounded-full shadow-md px-4 py-2">
+    <span class="text-base font-semibold text-slate-700">Where is Cha?</span>
+    <span id="modeBadge" class="hidden text-xs bg-indigo-100 text-indigo-600 rounded-full px-2 py-0.5">คนขับ</span>
+  </div>
+
+  <div class="pointer-events-auto inline-flex bg-white/95 backdrop-blur rounded-full shadow-md p-1 text-xs">
+    <button id="btnViewerMode" type="button" class="px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition">แฟนดู</button>
+    <button id="btnDriverMode" type="button" class="px-3 py-1.5 rounded-full font-medium text-slate-500 transition">คนขับ</button>
+  </div>
+</div>
+
+<!-- กล่องค้นหาจุดหมายที่จะไป (แสดงด้านบนเสมอในโหมดคนขับ) -->
+<div id="topSearchWrapper" class="map-search-ui hidden">
+  <form id="mapSearchForm" class="flex gap-1.5 rounded-full bg-white/95 backdrop-blur p-1.5 shadow-lg border border-slate-100">
     <input
       id="mapSearchInput"
       type="search"
       autocomplete="off"
-      placeholder="ค้นหาสถานที่..."
-      class="min-w-0 flex-1 rounded-full px-4 py-2.5 text-sm outline-none"
+      placeholder="ค้นหาจุดหมายที่จะไป เช่น พัทลุง, ม.ทักษิณ..."
+      class="min-w-0 flex-1 rounded-full px-4 py-2 text-sm outline-none bg-transparent"
     >
-    <button
-      type="submit"
-      class="rounded-full bg-indigo-500 px-4 text-sm text-white"
-    >ค้นหา</button>
+    <button type="submit" class="rounded-full bg-indigo-500 hover:bg-indigo-600 px-4 text-sm text-white font-medium transition">ค้นหา</button>
   </form>
-  <div
-    id="mapSearchResults"
-    class="map-search-results mt-2 max-h-56 overflow-y-auto rounded-2xl bg-white text-sm shadow-lg"
-  ></div>
+  <div id="mapSearchResults" class="map-search-results mt-2 max-h-56 overflow-y-auto rounded-2xl bg-white text-sm shadow-xl border border-slate-100"></div>
 </div>
 
+<!-- ปุ่มตำแหน่งปัจจุบัน -->
 <button
   id="myLocationBtn"
   type="button"
   aria-label="แสดงตำแหน่งปัจจุบัน"
   title="แสดงตำแหน่งปัจจุบัน"
-  class="fixed right-3 top-1/2 z-[1100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl shadow-lg"
->
-  <span aria-hidden="true">ตำแหน่ง</span>
-</button>
-
-<!-- Top bar -->
-<div class="fixed top-0 inset-x-0 z-[1000] p-3 pointer-events-none" style="padding-top:max(12px,env(safe-area-inset-top))">
-  <div class="pointer-events-auto inline-flex items-center gap-2 bg-white/90 backdrop-blur rounded-full shadow-md px-4 py-2">
-    <span class="text-lg font-semibold text-slate-700">Where is Cha?</span>
-    <span id="modeBadge" class="hidden text-xs bg-indigo-100 text-indigo-600 rounded-full px-2 py-0.5">คนขับ</span>
-  </div>
-</div>
+  class="fixed right-3 top-1/2 z-[1100] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg shadow-lg border border-slate-100 active:scale-95 transition"
+>&#127919;</button>
 
 <!-- Toast -->
-<div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 top-20 z-[2500] bg-slate-800/90 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90vw] text-center"></div>
+<div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 top-32 z-[2500] bg-slate-800/90 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90vw] text-center"></div>
 
 <!-- Bottom sheet -->
 <div class="fixed bottom-0 inset-x-0 z-[1000] flex justify-center px-3" style="padding-bottom:max(12px,env(safe-area-inset-bottom))">
@@ -132,106 +118,81 @@
         <button id="followBtn" class="shrink-0 text-xs rounded-full px-3 py-1.5 bg-pink-50 text-pink-500">ตามหมุด: เปิด</button>
       </div>
 
-      <div id="sheetBody" class="max-h-[58vh] overflow-y-auto">
+      <div id="sheetBody" class="max-h-[54vh] overflow-y-auto">
         <!-- Progress -->
         <div class="mt-3">
           <div class="flex justify-between text-xs text-slate-500 mb-1.5">
             <span id="destText" class="truncate pr-2">ยังไม่ได้ตั้งจุดหมาย</span><span id="pctText">0%</span>
           </div>
           <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden">
-            <div id="progressBar" class="h-full rounded-full bg-gradient-to-r from-pink-300 to-indigo-300 transition-all duration-700" style="width:0%"></div>
+            <div id="progressBar" class="h-full rounded-full bg-gradient-to-r from-pink-400 to-indigo-400 transition-all duration-700" style="width:0%"></div>
           </div>
           <div id="etaDetail" class="text-[11px] text-slate-400 mt-1"></div>
         </div>
 
         <!-- Stats -->
         <div class="grid grid-cols-3 gap-2 mt-3 text-center">
-          <div class="rounded-2xl bg-slate-50 py-2.5"><div id="speedText" class="text-xl font-semibold text-slate-700">0</div><div class="text-[11px] text-slate-400">km/h</div></div>
-          <div class="rounded-2xl bg-slate-50 py-2.5"><div id="remainText" class="text-xl font-semibold text-slate-700">-</div><div class="text-[11px] text-slate-400">กม. ที่เหลือ</div></div>
-          <div class="rounded-2xl bg-slate-50 py-2.5"><div id="etaText" class="text-xl font-semibold text-slate-700">-</div><div class="text-[11px] text-slate-400">ถึงประมาณ</div></div>
+          <div class="rounded-2xl bg-slate-50 py-2"><div id="speedText" class="text-lg font-semibold text-slate-700">0</div><div class="text-[11px] text-slate-400">km/h</div></div>
+          <div class="rounded-2xl bg-slate-50 py-2"><div id="remainText" class="text-lg font-semibold text-slate-700">-</div><div class="text-[11px] text-slate-400">กม. ที่เหลือ</div></div>
+          <div class="rounded-2xl bg-slate-50 py-2"><div id="etaText" class="text-lg font-semibold text-slate-700">-</div><div class="text-[11px] text-slate-400">ถึงประมาณ</div></div>
         </div>
 
         <!-- Viewer -->
-        <div id="viewerPanel" class="mt-4">
+        <div id="viewerPanel" class="mt-3">
           <div class="text-xs text-slate-400 mb-1.5">ส่งกำลังใจ</div>
           <div id="stickerBtns" class="grid grid-cols-4 gap-2"></div>
         </div>
 
         <!-- Driver -->
-        <div id="driverPanel" class="hidden mt-4 space-y-4">
+        <div id="driverPanel" class="hidden mt-3 space-y-3">
           <div class="flex items-center gap-3">
-            <img id="avatarPreview" alt="" class="w-12 h-12 rounded-full object-cover bg-pink-100 border-2 border-white shadow"
+            <img id="avatarPreview" alt="" class="w-11 h-11 rounded-full object-cover bg-pink-100 border-2 border-white shadow"
                  src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
-            <label class="flex-1 text-center text-sm rounded-xl border border-dashed border-slate-300 py-2.5 text-slate-500 cursor-pointer">
+            <label class="flex-1 text-center text-xs rounded-xl border border-dashed border-slate-300 py-2.5 text-slate-500 cursor-pointer hover:bg-slate-50">
               เปลี่ยนรูปอวตาร<input id="avatarInput" type="file" accept="image/*" class="hidden">
             </label>
           </div>
 
-          <div>
-            <div class="text-xs text-slate-400 mb-1.5">จุดหมาย</div>
-            <form id="searchForm" class="flex gap-2">
-              <input id="searchInput" class="flex-1 min-w-0 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-300" placeholder="ค้นหาสถานที่ เช่น พัทลุง">
-              <button class="rounded-xl bg-slate-800 text-white text-sm px-4">ค้นหา</button>
-            </form>
-            <div id="searchResults" class="mt-2 space-y-1 text-sm text-slate-400"></div>
-            <div class="flex gap-2 mt-2">
-              <button id="pickBtn" class="toggle flex-1 rounded-xl bg-indigo-50 text-indigo-600 text-sm py-2.5">แตะแผนที่เพื่อปักหมุด</button>
-              <button id="clearDestBtn" class="rounded-xl bg-slate-100 text-slate-500 text-sm px-4">ล้าง</button>
-            </div>
+          <div class="flex gap-2">
+            <button id="pickBtn" class="toggle flex-1 rounded-xl bg-indigo-50 text-indigo-600 text-xs font-medium py-2.5">แตะแผนที่เพื่อปักจุดหมาย</button>
+            <button id="clearDestBtn" class="rounded-xl bg-slate-100 text-slate-500 text-xs px-4">ล้างจุดหมาย</button>
           </div>
 
           <div>
-            <div class="text-xs text-slate-400 mb-1.5">สถานะ</div>
+            <div class="text-xs text-slate-400 mb-1">สถานะ</div>
             <div id="statusBtns" class="grid grid-cols-3 gap-2"></div>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
-            <button id="gpsBtn" class="toggle rounded-xl bg-indigo-500 text-white text-sm py-3">เริ่มแชร์ GPS</button>
-            <button id="demoBtn" class="toggle rounded-xl bg-slate-100 text-slate-600 text-sm py-3">ทดลองวิ่ง</button>
+            <button id="gpsBtn" class="toggle rounded-xl bg-indigo-500 text-white text-sm py-2.5 font-medium">เริ่มแชร์ GPS</button>
+            <button id="demoBtn" class="toggle rounded-xl bg-slate-100 text-slate-600 text-sm py-2.5 font-medium">ทดลองวิ่ง</button>
           </div>
-          <p class="text-[11px] text-slate-400 leading-relaxed">
-            เปิดหน้านี้ค้างไว้ระหว่างเดินทาง (ระบบกันจอดับให้อัตโนมัติ) ถ้าสลับไปแอปอื่นหรือล็อกจอ มือถือจะหยุดส่ง GPS ชั่วคราว
-            ส่วนโหมดทดลองวิ่งจะเขียนตำแหน่งจริงลงฐานข้อมูล แฟนจะเห็นหมุดขยับด้วย
-          </p>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- PIN modal -->
-<div id="pinModal" class="hidden fixed inset-0 z-[3000] bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-6">
-  <form id="pinForm" class="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl text-center">
-    <div class="text-lg font-medium text-slate-700">โหมดคนขับ</div>
-    <p class="text-xs text-slate-400 mt-1">ใส่รหัส PIN เพื่อปลดล็อก (ครั้งเดียวต่อเครื่อง)</p>
-    <input id="pinInput" type="password" inputmode="numeric" maxlength="8" autocomplete="off"
-           class="mt-4 w-full text-center tracking-[0.5em] text-2xl rounded-2xl bg-slate-50 border border-slate-200 py-3 outline-none focus:border-indigo-300">
-    <div id="pinError" class="text-xs text-rose-500 mt-2 h-4"></div>
-    <button class="mt-3 w-full rounded-2xl bg-slate-800 text-white py-3">ปลดล็อก</button>
-    <a href="./" class="block mt-3 text-xs text-slate-400">กลับไปโหมดดู</a>
-  </form>
-</div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 /* ================= CONFIG ================= */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyBOpV9UvLKSVFySYhuCUeLrIT-8OIHL9fE",
   authDomain: "where-is-cha.firebaseapp.com",
   databaseURL: "https://where-is-cha-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "where-is-cha",
-  appId: "YOUR_APP_ID"
+  storageBucket: "where-is-cha.firebasestorage.app",
+  messagingSenderId: "1007262654950",
+  appId: "1:1007262654950:web:d4bc25cf1b4df5730ab627"
 };
-const DEFAULT_CENTER = [7.0086, 100.4747];                 // หาดใหญ่
+const DEFAULT_CENTER = [7.0086, 100.4747]; // หาดใหญ่
 const DEMO_DEST = { lat: 7.6166, lng: 100.0740, name: 'พัทลุง' };
-const GPS_INTERVAL_MS = 3000;                               // ส่งพิกัดทุก 3 วินาที
-const FALLBACK_SPEED = 60;                                  // km/h ใช้คำนวณ ETA ตอนจอด/ช้า
-const DEMO_SECONDS = 90;                                    // เดโมวิ่งจบใน 90 วินาที
+const GPS_INTERVAL_MS = 3000;
+const FALLBACK_SPEED = 60;
+const DEMO_SECONDS = 60;
 
-/* อีโมจิเขียนเป็น \u escape ทั้งหมด (กัน GitHub web editor ตัดไฟล์) */
 const E = { car: '\uD83D\uDE97', coffee: '\u2615', flag: '\uD83C\uDFC1', heart: '\u2764\uFE0F', pin: '\uD83D\uDCCD', person: '\uD83D\uDE4B' };
 const STATUSES = [
   { text: 'กำลังเดินทาง', emoji: E.car },
@@ -248,10 +209,8 @@ const STICKERS = [
 /* ================= INIT ================= */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const auth = firebase.auth();
 const tripRef = db.ref('trip');
 const TS = firebase.database.ServerValue.TIMESTAMP;
-const IS_DRIVER = new URLSearchParams(location.search).get('mode') === 'driver';
 const $ = id => document.getElementById(id);
 
 let serverOffset = 0;
@@ -263,143 +222,13 @@ let routeCum = null, meMarker = null, destMarker = null, routeLine = null;
 let followMe = true, fitted = false, avgSpeed = null;
 
 /* ================= MAP ================= */
-const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 8);
-map.attributionControl.setPosition('topright');
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_5fsw_1_d652ebba69f34b5f275e31f2', {
+const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 9);
+map.attributionControl.setPosition('bottomleft');
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; OpenStreetMap &copy; CARTO',
   subdomains: 'abcd',
   maxZoom: 20
 }).addTo(map);
-  /* ===== ค้นหาสถานที่บนแผนที่ ===== */
-const mapSearchForm = document.getElementById('mapSearchForm');
-const mapSearchInput = document.getElementById('mapSearchInput');
-const mapSearchResults = document.getElementById('mapSearchResults');
-
-let searchedPlaceMarker = null;
-let myLocationMarker = null;
-let myLocationAccuracy = null;
-
-mapSearchForm.addEventListener('submit', async event => {
-  event.preventDefault();
-
-  const query = mapSearchInput.value.trim();
-  if (!query) return;
-
-  mapSearchResults.textContent = 'กำลังค้นหา...';
-
-  try {
-    const url =
-      'https://nominatim.openstreetmap.org/search' +
-      '?format=jsonv2&limit=5&accept-language=th&countrycodes=th&q=' +
-      encodeURIComponent(query);
-
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Search request failed');
-
-    const places = await response.json();
-    mapSearchResults.replaceChildren();
-
-    if (!places.length) {
-      mapSearchResults.textContent = 'ไม่พบสถานที่';
-      return;
-    }
-
-    places.forEach(place => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'map-search-result';
-
-      // ใช้ textContent เพื่อไม่แสดงผลข้อความค้นหาเป็น HTML
-      button.textContent = place.display_name;
-
-      button.addEventListener('click', () => {
-        const lat = Number(place.lat);
-        const lng = Number(place.lon);
-        const name = place.name || place.display_name;
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-        if (searchedPlaceMarker) map.removeLayer(searchedPlaceMarker);
-
-        searchedPlaceMarker = L.circleMarker([lat, lng], {
-          radius: 9,
-          color: '#ffffff',
-          weight: 3,
-          fillColor: '#6366f1',
-          fillOpacity: 1
-        }).addTo(map);
-
-        searchedPlaceMarker.bindPopup(
-          document.createTextNode(name)
-        ).openPopup();
-
-        map.setView([lat, lng], 15);
-        mapSearchResults.replaceChildren();
-      });
-
-      mapSearchResults.appendChild(button);
-    });
-  } catch (error) {
-    mapSearchResults.textContent = 'ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง';
-  }
-});
-
-/* ===== ปุ่มตำแหน่งปัจจุบัน ===== */
-document.getElementById('myLocationBtn').addEventListener('click', () => {
-  if (!navigator.geolocation) {
-    toast('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง');
-    return;
-  }
-
-  toast('กำลังหาตำแหน่งปัจจุบัน...');
-
-  navigator.geolocation.getCurrentPosition(
-    position => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const accuracy = position.coords.accuracy || 50;
-      const point = [lat, lng];
-
-      const currentIcon = L.divIcon({
-        className: '',
-        html: '<div class="my-location-dot"></div>',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-      });
-
-      if (myLocationMarker) map.removeLayer(myLocationMarker);
-      if (myLocationAccuracy) map.removeLayer(myLocationAccuracy);
-
-      myLocationAccuracy = L.circle(point, {
-        radius: accuracy,
-        color: '#4285f4',
-        weight: 1,
-        fillColor: '#4285f4',
-        fillOpacity: 0.12
-      }).addTo(map);
-
-      myLocationMarker = L.marker(point, {
-        icon: currentIcon,
-        zIndexOffset: 2000
-      }).addTo(map);
-
-      map.setView(point, 16);
-      toast('แสดงตำแหน่งปัจจุบันแล้ว');
-    },
-    error => {
-      if (error.code === 1) {
-        toast('กรุณาอนุญาตให้เว็บไซต์เข้าถึงตำแหน่ง');
-      } else {
-        toast('หาตำแหน่งไม่สำเร็จ ลองเปิด GPS แล้วกดอีกครั้ง');
-      }
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 10000
-    }
-  );
-});
 
 /* ================= HELPERS ================= */
 function toast(msg, ms = 2500) {
@@ -464,7 +293,7 @@ function fitAll() {
   if (!routeLine && pts.length === 1) return map.setView(pts[0], 14);
   let b = routeLine ? routeLine.getBounds() : null;
   pts.forEach(p => b ? b.extend(p) : (b = L.latLngBounds([p, p])));
-  if (b) map.fitBounds(b, { paddingTopLeft: [40, 80], paddingBottomRight: [40, 320] });
+  if (b) map.fitBounds(b, { paddingTopLeft: [40, 120], paddingBottomRight: [40, 320] });
 }
 
 /* ================= RENDER ================= */
@@ -513,7 +342,7 @@ function renderDestination() {
   const rc = Array.isArray(d.routeCoords) ? d.routeCoords.filter(p => Array.isArray(p) && p.length === 2) : [];
   d.routeCoords = rc;
   if (rc.length > 1) {
-    routeLine = L.polyline(rc, { color: '#a5b4fc', weight: 6, opacity: .9, lineCap: 'round' }).addTo(map);
+    routeLine = L.polyline(rc, { color: '#6366f1', weight: 6, opacity: .85, lineCap: 'round' }).addTo(map);
     routeCum = buildCum(rc);
   }
   destMarker = L.marker([d.destLat, d.destLng], { icon: destIcon }).addTo(map);
@@ -551,11 +380,11 @@ function popSticker(s) {
   if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
 }
 function buildStickers() {
-  const box = $('stickerBtns');
+  const box = $('stickerBtns'); box.innerHTML = '';
   STICKERS.forEach(s => {
     const b = document.createElement('button');
-    b.className = 'rounded-2xl bg-pink-50 hover:bg-pink-100 active:scale-95 transition py-2.5 flex flex-col items-center';
-    b.innerHTML = `<span class="text-2xl">${s.emoji}</span><span class="text-[11px] text-slate-500 mt-0.5">${s.text}</span>`;
+    b.className = 'rounded-2xl bg-pink-50 hover:bg-pink-100 active:scale-95 transition py-2 flex flex-col items-center';
+    b.innerHTML = `<span class="text-xl">${s.emoji}</span><span class="text-[11px] text-slate-500 mt-0.5">${s.text}</span>`;
     b.onclick = () => sendSticker(s);
     box.appendChild(b);
   });
@@ -565,7 +394,6 @@ async function sendSticker(s) {
   if (Date.now() - lastSticker < 3000) return toast('ส่งถี่ไปนิด รอแป๊บนะ');
   lastSticker = Date.now();
   try {
-    await ensureAuth();
     await tripRef.child('sticker').set({ emoji: s.emoji, text: s.text, timestamp: TS });
     toast('ส่งแล้ว!');
   } catch (e) { toast('ส่งไม่สำเร็จ ลองใหม่อีกครั้ง'); }
@@ -579,7 +407,7 @@ tripRef.child('location').on('value', s => { state.location = s.val(); renderLoc
 tripRef.child('destination').on('value', s => { state.destination = s.val(); renderDestination(); });
 tripRef.child('sticker').on('value', s => {
   const v = s.val();
-  if (!stickerReady) { stickerReady = true; return; }   // ไม่เด้งสติกเกอร์เก่าตอนเปิดหน้า
+  if (!stickerReady) { stickerReady = true; return; }
   if (v && v.emoji) popSticker(v);
 });
 
@@ -592,20 +420,21 @@ function setFollow(on) {
 $('followBtn').onclick = () => setFollow(!followMe);
 map.on('dragstart', () => { if (followMe) setFollow(false); });
 
-/* ================= AUTH ================= */
-async function ensureAuth() {
-  if (auth.currentUser) return auth.currentUser;
-  const c = await auth.signInAnonymously(); return c.user;
-}
+/* ปุ่มโฟกัสตำแหน่งปัจจุบัน */
+$('myLocationBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) return toast('เบราว์เซอร์ไม่รองรับ GPS');
+  toast('กำลังหาตำแหน่งปัจจุบัน...');
+  navigator.geolocation.getCurrentPosition(p => {
+    const pt = [p.coords.latitude, p.coords.longitude];
+    map.setView(pt, 15);
+    toast('แสดงตำแหน่งปัจจุบันแล้ว');
+  }, () => toast('กรุณาอนุญาตการเข้าถึง GPS'), { enableHighAccuracy: true, timeout: 10000 });
+});
 
-/* ================= DRIVER ================= */
+/* ================= DRIVER & SEARCH ================= */
 async function dw(path, val) {
   try { await tripRef.child(path).set(val); return true; }
-  catch (e) {
-    const denied = String(e && (e.code || e.message)).toLowerCase().includes('permission');
-    toast(denied ? 'ไม่มีสิทธิ์เขียนข้อมูล (ยังไม่ได้ปลดล็อก PIN?)' : 'บันทึกไม่สำเร็จ');
-    return false;
-  }
+  catch (e) { toast('บันทึกไม่สำเร็จ (ตรวจสอบ Firebase Rules)'); return false; }
 }
 function setBtn(id, on, onText, offText) { const b = $(id); b.textContent = on ? onText : offText; b.classList.toggle('on', on); }
 
@@ -647,7 +476,6 @@ async function setDestination(lat, lng, name) {
       km = j.routes[0].distance / 1000;
     } catch (e) {
       coords = [start, [lat, lng]]; km = hav(start, [lat, lng]);
-      toast('หาเส้นทางถนนไม่ได้ ใช้เส้นตรงแทน');
     }
     if (!state.location) await dw('location', { lat: start[0], lng: start[1], speed: 0, updatedAt: TS });
     const ok = await dw('destination', {
@@ -658,7 +486,41 @@ async function setDestination(lat, lng, name) {
   } finally { routing = false; }
 }
 
-/* --- GPS + Wake Lock --- */
+/* ค้นหาสถานที่ด้านบน -> กดเลือกแล้วตั้งจุดหมายปลายทางทันที */
+$('mapSearchForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const query = $('mapSearchInput').value.trim();
+  if (!query) return;
+  const resultsBox = $('mapSearchResults');
+  resultsBox.textContent = 'กำลังค้นหา...';
+
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=th&countrycodes=th&q=' + encodeURIComponent(query);
+    const response = await fetch(url);
+    const places = await response.json();
+    resultsBox.replaceChildren();
+
+    if (!places.length) { resultsBox.textContent = 'ไม่พบสถานที่'; return; }
+
+    places.forEach(place => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'map-search-result';
+      const shortName = place.name || place.display_name.split(',')[0];
+      button.innerHTML = `<div class="font-medium text-slate-700">${shortName}</div><div class="text-xs text-slate-400 truncate">${place.display_name}</div>`;
+
+      button.addEventListener('click', () => {
+        const lat = Number(place.lat), lng = Number(place.lon);
+        resultsBox.replaceChildren();
+        $('mapSearchInput').value = shortName;
+        setDestination(lat, lng, shortName);
+      });
+      resultsBox.appendChild(button);
+    });
+  } catch (error) { resultsBox.textContent = 'ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง'; }
+});
+
+/* GPS + Wake Lock */
 let watchId = null, lastSent = 0, prevFix = null, wakeLock = null;
 async function requestWakeLock() {
   try {
@@ -666,23 +528,19 @@ async function requestWakeLock() {
       wakeLock = await navigator.wakeLock.request('screen');
       wakeLock.addEventListener('release', () => { wakeLock = null; });
     }
-  } catch (e) { console.warn('WakeLock:', e); }
+  } catch (e) {}
 }
 function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && (watchId !== null || demoTimer)) requestWakeLock();
-});
 
 function onFix(p) {
   const t = Date.now(), c = p.coords;
   if (t - lastSent < GPS_INTERVAL_MS) return;
-  if (c.accuracy && c.accuracy > 500) return;           // ตัดค่าที่คลาดเคลื่อนมาก
+  if (c.accuracy && c.accuracy > 500) return;
   const pos = [c.latitude, c.longitude];
   let kmh = (c.speed != null && !isNaN(c.speed)) ? c.speed * 3.6 : null;
   if (kmh === null && prevFix) { const dt = (t - prevFix.t) / 3600000; if (dt > 0) kmh = hav(prevFix.pos, pos) / dt; }
   prevFix = { pos, t }; lastSent = t;
-  dw('location', { lat: +pos[0].toFixed(6), lng: +pos[1].toFixed(6), speed: Math.round(kmh || 0),
-    accuracy: Math.round(c.accuracy || 0), updatedAt: TS });
+  dw('location', { lat: +pos[0].toFixed(6), lng: +pos[1].toFixed(6), speed: Math.round(kmh || 0), updatedAt: TS });
 }
 function startGPS() {
   if (!navigator.geolocation) return toast('อุปกรณ์นี้ไม่รองรับ GPS');
@@ -692,7 +550,7 @@ function startGPS() {
     { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
   requestWakeLock();
   setBtn('gpsBtn', true, 'หยุดแชร์ GPS', 'เริ่มแชร์ GPS');
-  toast('เริ่มแชร์ตำแหน่งแล้ว เปิดหน้านี้ค้างไว้นะ');
+  toast('เริ่มแชร์ตำแหน่งแล้ว');
 }
 function stopGPS() {
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
@@ -700,7 +558,7 @@ function stopGPS() {
   setBtn('gpsBtn', false, 'หยุดแชร์ GPS', 'เริ่มแชร์ GPS');
 }
 
-/* --- Demo simulation --- */
+/* Demo simulation */
 let demoTimer = null;
 async function startDemo() {
   if (watchId !== null) stopGPS();
@@ -717,7 +575,7 @@ async function startDemo() {
     traveled = Math.min(total, traveled + step);
     const p = pointAt(rc, cum, traveled);
     dw('location', { lat: +p[0].toFixed(6), lng: +p[1].toFixed(6), speed: Math.round(70 + Math.random() * 30), updatedAt: TS });
-    if (traveled >= total) { stopDemo(); dw('status', 'ถึงแล้ว'); toast('ถึงที่หมายแล้ว (เดโม)'); }
+    if (traveled >= total) { stopDemo(); dw('status', 'ถึงแล้ว'); toast('ถึงที่หมายแล้ว'); }
   }, 1000);
 }
 function stopDemo() {
@@ -726,106 +584,70 @@ function stopDemo() {
   setBtn('demoBtn', false, 'หยุดทดลอง', 'ทดลองวิ่ง');
 }
 
-/* --- Pick on map --- */
+/* Pick on map */
 let pickMode = false;
 function updatePick() {
-  setBtn('pickBtn', pickMode, 'แตะบนแผนที่ได้เลย (กดเพื่อยกเลิก)', 'แตะแผนที่เพื่อปักหมุด');
+  setBtn('pickBtn', pickMode, 'แตะบนแผนที่ได้เลย (กดเพื่อยกเลิก)', 'แตะแผนที่เพื่อปักจุดหมาย');
   map.getContainer().style.cursor = pickMode ? 'crosshair' : '';
 }
 
 function buildStatusBtns() {
-  const box = $('statusBtns');
+  const box = $('statusBtns'); box.innerHTML = '';
   STATUSES.forEach(s => {
     const b = document.createElement('button');
     b.dataset.status = s.text;
-    b.className = 'chip rounded-xl bg-slate-100 text-slate-600 py-2.5 flex flex-col items-center transition';
-    b.innerHTML = `<span class="text-xl">${s.emoji}</span><span class="text-xs mt-0.5">${s.text}</span>`;
+    b.className = 'chip rounded-xl bg-slate-100 text-slate-600 py-2 flex flex-col items-center transition';
+    b.innerHTML = `<span class="text-lg">${s.emoji}</span><span class="text-xs mt-0.5">${s.text}</span>`;
     b.onclick = () => dw('status', s.text);
     box.appendChild(b);
   });
   renderStatus();
 }
 
-function bindDriver() {
-  $('avatarInput').onchange = async e => {
-    const f = e.target.files[0]; if (!f) return;
-    try { const data = await resizeImage(f); if (await dw('avatar', data)) toast('อัปเดตรูปอวตารแล้ว'); }
-    catch (err) { toast('อ่านไฟล์รูปไม่ได้'); }
-    e.target.value = '';
-  };
+let driverBound = false;
+function switchMode(isDriver) {
+  $('modeBadge').classList.toggle('hidden', !isDriver);
+  $('viewerPanel').classList.toggle('hidden', isDriver);
+  $('driverPanel').classList.toggle('hidden', !isDriver);
+  $('topSearchWrapper').classList.toggle('hidden', !isDriver);
 
-  $('searchForm').onsubmit = async e => {
-    e.preventDefault();
-    const q = $('searchInput').value.trim(); if (!q) return;
-    const box = $('searchResults'); box.textContent = 'กำลังค้นหา...';
-    try {
-      // countrycodes=th จำกัดผลในไทย ถ้าเดินทางต่างประเทศให้ลบพารามิเตอร์นี้ออก
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=th&countrycodes=th&q=${encodeURIComponent(q)}`;
-      const list = await (await fetch(url)).json();
-      box.innerHTML = '';
-      if (!list.length) { box.textContent = 'ไม่พบสถานที่'; return; }
-      list.forEach(p => {
-        const name = p.name || p.display_name.split(',')[0];
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'w-full text-left rounded-xl px-3 py-2 hover:bg-slate-50 border border-slate-100';
-        const t1 = document.createElement('div'); t1.className = 'text-slate-700'; t1.textContent = name;
-        const t2 = document.createElement('div'); t2.className = 'text-[11px] text-slate-400 truncate'; t2.textContent = p.display_name;
-        b.append(t1, t2);
-        b.onclick = () => { box.innerHTML = ''; $('searchInput').value = name; setDestination(+p.lat, +p.lon, name); };
-        box.appendChild(b);
-      });
-    } catch (err) { box.textContent = 'ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง'; }
-  };
+  $('btnDriverMode').className = isDriver ? 'px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition' : 'px-3 py-1.5 rounded-full font-medium text-slate-500 transition';
+  $('btnViewerMode').className = !isDriver ? 'px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition' : 'px-3 py-1.5 rounded-full font-medium text-slate-500 transition';
 
-  $('pickBtn').onclick = () => { pickMode = !pickMode; updatePick(); };
-  map.on('click', async e => {
-    if (!pickMode) return;
-    pickMode = false; updatePick();
-    const { lat, lng } = e.latlng;
-    let name = 'จุดที่ปักหมุด';
-    try {
-      const j = await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=th&zoom=14&lat=${lat}&lon=${lng}`)).json();
-      const a = j.address || {};
-      name = j.name || a.village || a.town || a.city || a.county || a.state || (j.display_name || '').split(',')[0] || name;
-    } catch (err) {}
-    setDestination(lat, lng, name);
-  });
-
-  $('clearDestBtn').onclick = () => { if (confirm('ล้างจุดหมายและเส้นทาง?')) dw('destination', null); };
-  $('gpsBtn').onclick = () => watchId !== null ? stopGPS() : startGPS();
-  $('demoBtn').onclick = () => demoTimer ? stopDemo() : startDemo();
-}
-
-function showPin() { $('pinModal').classList.remove('hidden'); setTimeout(() => $('pinInput').focus(), 100); }
-$('pinForm').onsubmit = async e => {
-  e.preventDefault();
-  const pin = $('pinInput').value.trim(); if (!pin) return;
-  $('pinError').textContent = '';
-  try {
-    const u = await ensureAuth();
-    await db.ref('drivers/' + u.uid).set(pin);       // Rules ตรวจ PIN ฝั่งเซิร์ฟเวอร์
-    $('pinModal').classList.add('hidden');
-    toast('ปลดล็อกโหมดคนขับแล้ว');
-  } catch (err) {
-    $('pinError').textContent = 'รหัสไม่ถูกต้อง'; $('pinInput').value = '';
+  if (isDriver && !driverBound) {
+    driverBound = true;
+    buildStatusBtns();
+    $('avatarInput').onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      try { const data = await resizeImage(f); if (await dw('avatar', data)) toast('อัปเดตรูปอวตารแล้ว'); }
+      catch (err) { toast('อ่านไฟล์รูปไม่ได้'); }
+      e.target.value = '';
+    };
+    $('pickBtn').onclick = () => { pickMode = !pickMode; updatePick(); };
+    map.on('click', async e => {
+      if (!pickMode) return;
+      pickMode = false; updatePick();
+      const { lat, lng } = e.latlng;
+      let name = 'จุดที่ปักหมุด';
+      try {
+        const j = await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=th&zoom=14&lat=${lat}&lon=${lng}`)).json();
+        const a = j.address || {};
+        name = j.name || a.village || a.town || a.city || a.county || a.state || (j.display_name || '').split(',')[0] || name;
+      } catch (err) {}
+      setDestination(lat, lng, name);
+    });
+    $('clearDestBtn').onclick = () => dw('destination', null);
+    $('gpsBtn').onclick = () => watchId !== null ? stopGPS() : startGPS();
+    $('demoBtn').onclick = () => demoTimer ? stopDemo() : startDemo();
   }
-};
-
-async function initDriver() {
-  $('modeBadge').classList.remove('hidden');
-  $('viewerPanel').classList.add('hidden');
-  $('driverPanel').classList.remove('hidden');
-  buildStatusBtns(); bindDriver();
-  try {
-    const u = await ensureAuth();
-    const s = await db.ref('drivers/' + u.uid).get();
-    if (!s.exists()) showPin();
-  } catch (e) { showPin(); }
 }
 
-if (IS_DRIVER) initDriver();
-else { buildStickers(); ensureAuth().catch(() => {}); }
+$('btnDriverMode').onclick = () => switchMode(true);
+$('btnViewerMode').onclick = () => switchMode(false);
+buildStickers();
+
+if (new URLSearchParams(location.search).get('mode') === 'driver') switchMode(true);
+else switchMode(false);
 </script>
 </body>
 </html>
