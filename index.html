@@ -225,10 +225,9 @@ let followMe = true, fitted = false, avgSpeed = null;
 /* ================= MAP ================= */
 const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 9);
 map.attributionControl.setPosition('bottomleft');
-L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${MAP_API_KEY}`, {
-  attribution: '&copy; OpenStreetMap &copy; CARTO',
-  subdomains: 'abcd',
-  maxZoom: 20
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19
 }).addTo(map);
 
 /* ================= HELPERS ================= */
