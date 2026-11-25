@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Where is Cha? — ติดตามการเดินทาง</title>
+  <title>Where is Cha? - ติดตามการเดินทาง</title>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -48,8 +48,8 @@
       </div>
 
       <div class="bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-sm border border-slate-100 pointer-events-auto flex text-xs">
-        <button id="btn-mode-viewer" onclick="setMode('viewer')" class="px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600">👀 โหมดแฟนดู</button>
-        <button id="btn-mode-driver" onclick="setMode('driver')" class="px-3 py-1.5 rounded-xl font-medium text-slate-500 transition">🚗 โหมดคนขับ</button>
+        <button id="btn-mode-viewer" onclick="setMode('viewer')" class="px-3 py-1.5 rounded-xl font-medium transition bg-indigo-50 text-indigo-600">&#128064; โหมดแฟนดู</button>
+        <button id="btn-mode-driver" onclick="setMode('driver')" class="px-3 py-1.5 rounded-xl font-medium text-slate-500 transition">&#128663; โหมดคนขับ</button>
       </div>
     </div>
 
@@ -63,10 +63,10 @@
 
   <!-- ปุ่มด้านขวา -->
   <div class="fixed top-32 right-4 z-20 flex flex-col gap-2">
-    <button onclick="centerMap()" title="โฟกัสตำแหน่ง" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition">🎯</button>
-    <button onclick="fitRouteBounds()" title="ดูภาพรวมเส้นทาง" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition">🗺️</button>
-    <label for="avatar-upload" title="เปลี่ยนรูปอวตาร" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition cursor-pointer">📷</label>
-    <button onclick="clearDestination()" title="ล้างจุดหมาย" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition text-xs">🧹</button>
+    <button onclick="centerMap()" title="โฟกัสตำแหน่ง" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition">&#127919;</button>
+    <button onclick="fitRouteBounds()" title="ดูภาพรวมเส้นทาง" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition">&#128506;</button>
+    <label for="avatar-upload" title="เปลี่ยนรูปอวตาร" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition cursor-pointer">&#128247;</label>
+    <button onclick="clearDestination()" title="ล้างจุดหมาย" class="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition text-xs">&#129529;</button>
     <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)" />
   </div>
 
@@ -79,7 +79,7 @@
         <div class="flex items-center gap-3">
           <div class="relative">
             <img id="preview-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Cha" alt="Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-100 bg-slate-100" />
-            <label for="avatar-upload" class="absolute -bottom-1 -right-1 bg-indigo-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center cursor-pointer shadow">✎</label>
+            <label for="avatar-upload" class="absolute -bottom-1 -right-1 bg-indigo-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center cursor-pointer shadow">&#9998;</label>
           </div>
           <div>
             <h2 class="text-sm font-semibold text-slate-800">คุณชา</h2>
@@ -104,12 +104,12 @@
 
       <div id="driver-controls" class="hidden space-y-2.5">
         <div class="grid grid-cols-3 gap-2 text-xs">
-          <button onclick="updateTripStatus('กำลังเดินทาง 🚗')" class="py-2 rounded-xl bg-emerald-50 text-emerald-600 font-medium hover:bg-emerald-100 transition">กำลังขับรถ</button>
-          <button onclick="updateTripStatus('แวะพักแป๊บนึง ☕')" class="py-2 rounded-xl bg-amber-50 text-amber-600 font-medium hover:bg-amber-100 transition">แวะพักรถ</button>
-          <button onclick="updateTripStatus('ถึงที่หมายแล้ว 🎉')" class="py-2 rounded-xl bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition">ถึงแล้ว!</button>
+          <button onclick="updateTripStatus('กำลังเดินทาง')" class="py-2 rounded-xl bg-emerald-50 text-emerald-600 font-medium hover:bg-emerald-100 transition">กำลังขับรถ</button>
+          <button onclick="updateTripStatus('แวะพักแป๊บนึง')" class="py-2 rounded-xl bg-amber-50 text-amber-600 font-medium hover:bg-amber-100 transition">แวะพักรถ</button>
+          <button onclick="updateTripStatus('ถึงที่หมายแล้ว')" class="py-2 rounded-xl bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition">ถึงแล้ว!</button>
         </div>
         <div class="flex gap-2">
-          <button id="btn-share-gps" onclick="toggleTracking()" class="flex-1 py-3 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium shadow-sm transition">📍 เริ่มแชร์ตำแหน่งสด</button>
+          <button id="btn-share-gps" onclick="toggleTracking()" class="flex-1 py-3 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium shadow-sm transition">&#128205; เริ่มแชร์ตำแหน่งสด</button>
           <button onclick="startDemoSimulation()" class="px-3 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition">ทดลองวิ่ง</button>
         </div>
       </div>
@@ -117,10 +117,10 @@
       <div id="viewer-controls" class="space-y-2">
         <p class="text-[11px] text-slate-400 text-center">ส่งกำลังใจให้คุณชา (เด้งขึ้นหน้าจอทันที)</p>
         <div class="grid grid-cols-4 gap-2">
-          <button onclick="sendSticker('❤️', 'คิดถึงนะ!')" class="py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium transition">❤️ คิดถึง</button>
-          <button onclick="sendSticker('🚗💨', 'ขับรถดีๆ นะ')" class="py-2 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-600 text-xs font-medium transition">🚗 ขับดีๆ</button>
-          <button onclick="sendSticker('☕', 'แวะพักบ้างนะ')" class="py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-medium transition">☕ พักบ้าง</button>
-          <button onclick="sendSticker('🎉', 'ถึงแล้วบอกด้วย')" class="py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-xs font-medium transition">🎉 ถึงแล้วบอก</button>
+          <button onclick="sendSticker('&#10084;&#65039;', 'คิดถึงนะ!')" class="py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium transition">&#10084;&#65039; คิดถึง</button>
+          <button onclick="sendSticker('&#128663;', 'ขับรถดีๆ นะ')" class="py-2 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-600 text-xs font-medium transition">&#128663; ขับดีๆ</button>
+          <button onclick="sendSticker('&#9749;', 'แวะพักบ้างนะ')" class="py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-medium transition">&#9749; พักบ้าง</button>
+          <button onclick="sendSticker('&#127881;', 'ถึงแล้วบอกด้วย')" class="py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-xs font-medium transition">&#127881; ถึงแล้วบอก</button>
         </div>
       </div>
     </div>
@@ -153,14 +153,14 @@
     function createAvatarIcon(imgUrl) {
       return L.divIcon({
         className: 'custom-div-icon',
-        html: `<div style="position:relative; width:50px; height:50px;"><div class="avatar-pulse"></div><div class="avatar-marker" style="width:50px; height:50px; background-image:url('${imgUrl}');"></div></div>`,
+        html: '<div style="position:relative; width:50px; height:50px;"><div class="avatar-pulse"></div><div class="avatar-marker" style="width:50px; height:50px; background-image:url(\'' + imgUrl + '\');"></div></div>',
         iconSize: [50, 50], iconAnchor: [25, 25]
       });
     }
 
     const destIcon = L.divIcon({
       className: 'dest-icon',
-      html: `<div style="font-size: 32px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));">🏁</div>`,
+      html: '<div style="font-size: 32px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));">&#127937;</div>',
       iconSize: [32, 32], iconAnchor: [10, 30]
     });
 
@@ -172,14 +172,14 @@
 
     map.on('click', function(e) {
       if (currentMode !== 'driver') return;
-      setDestination(e.latlng.lat, e.latlng.lng, `จุดหมาย (${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)})`);
+      setDestination(e.latlng.lat, e.latlng.lng, 'จุดหมาย (' + e.latlng.lat.toFixed(3) + ', ' + e.latlng.lng.toFixed(3) + ')');
     });
 
     async function searchDestination() {
       const query = document.getElementById('dest-input').value.trim();
       if (!query) return;
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=th&limit=1`);
+        const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&countrycodes=th&limit=1');
         const data = await res.json();
         if (data && data.length > 0) {
           setDestination(parseFloat(data[0].lat), parseFloat(data[0].lon), data[0].display_name.split(',')[0]);
@@ -193,7 +193,7 @@
       let routeCoords = [[cur.lat, cur.lng], [destLat, destLng]];
       let totalDistKm = calculateHaversine(cur.lat, cur.lng, destLat, destLng);
       try {
-        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${cur.lng},${cur.lat};${destLng},${destLat}?overview=full&geometries=geojson`);
+        const res = await fetch('https://router.project-osrm.org/route/v1/driving/' + cur.lng + ',' + cur.lat + ';' + destLng + ',' + destLat + '?overview=full&geometries=geojson');
         const data = await res.json();
         if (data.routes && data.routes.length > 0) {
           totalDistKm = data.routes[0].distance / 1000;
@@ -219,7 +219,7 @@
       if (!destMarker) destMarker = L.marker([meta.destLat, meta.destLng], { icon: destIcon }).addTo(map);
       else destMarker.setLatLng([meta.destLat, meta.destLng]);
       if (meta.routeCoords) plannedRouteLine.setLatLngs(meta.routeCoords);
-      document.getElementById('dest-label').innerText = `ไป: ${meta.destName}`;
+      document.getElementById('dest-label').innerText = 'ไป: ' + meta.destName;
       document.getElementById('progress-section').classList.remove('hidden');
       const cur = marker.getLatLng();
       updateProgressUI(cur.lat, cur.lng);
@@ -244,9 +244,9 @@
       let percent = straightRem < 0.15 ? 100 : Math.round(((tripData.totalDistanceKm - remKm) / tripData.totalDistanceKm) * 100);
       percent = Math.max(0, Math.min(100, percent));
       const mins = Math.round((remKm / 65) * 60);
-      document.getElementById('progress-percent').innerText = `เดินทางแล้ว ${percent}%`;
-      document.getElementById('progress-bar').style.width = `${percent}%`;
-      document.getElementById('remaining-info').innerText = percent === 100 ? 'ถึงจุดหมายแล้ว!' : `เหลือ ${remKm.toFixed(1)} กม. (~${mins} นาที)`;
+      document.getElementById('progress-percent').innerText = 'เดินทางแล้ว ' + percent + '%';
+      document.getElementById('progress-bar').style.width = percent + '%';
+      document.getElementById('remaining-info').innerText = percent === 100 ? 'ถึงจุดหมายแล้ว!' : 'เหลือ ' + remKm.toFixed(1) + ' กม. (~' + mins + ' นาที)';
     }
 
     function handleAvatarUpload(event) {
@@ -280,8 +280,8 @@
       if (!isTracking) {
         if (!navigator.geolocation) return alert("ไม่รองรับ GPS");
         isTracking = true; requestWakeLock();
-        btn.innerText = "⏹ หยุดแชร์ตำแหน่ง"; btn.classList.replace('bg-indigo-500', 'bg-rose-500');
-        updateTripStatus('กำลังเดินทาง 🚗');
+        btn.innerHTML = "&#9209; หยุดแชร์ตำแหน่ง"; btn.classList.replace('bg-indigo-500', 'bg-rose-500');
+        updateTripStatus('กำลังเดินทาง');
         watchId = navigator.geolocation.watchPosition(
           (pos) => {
             const speedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
@@ -292,7 +292,7 @@
         );
       } else {
         isTracking = false; if (watchId) navigator.geolocation.clearWatch(watchId); if (wakeLock) wakeLock.release();
-        btn.innerText = "📍 เริ่มแชร์ตำแหน่งสด"; btn.classList.replace('bg-rose-500', 'bg-indigo-500');
+        btn.innerHTML = "&#128205; เริ่มแชร์ตำแหน่งสด"; btn.classList.replace('bg-rose-500', 'bg-indigo-500');
         updateTripStatus('หยุดแชร์ตำแหน่งชั่วคราว');
       }
     }
@@ -303,7 +303,7 @@
       updateProgressUI(lat, lng);
       document.getElementById('speed-display').innerText = speed;
       const t = timestamp ? new Date(timestamp) : new Date();
-      document.getElementById('last-update').innerText = `อัปเดตเมื่อ ${t.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+      document.getElementById('last-update').innerText = 'อัปเดตเมื่อ ' + t.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       document.getElementById('status-dot').className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping";
     }
 
@@ -312,7 +312,7 @@
     function showStickerToast(emoji, text) {
       const el = document.createElement('div');
       el.className = 'sticker-toast bg-white/95 backdrop-blur-md px-6 py-4 rounded-3xl shadow-xl border border-indigo-100 text-center';
-      el.innerHTML = `<div class="text-4xl mb-1">${emoji}</div><div class="text-sm font-medium text-slate-700">${text}</div>`;
+      el.innerHTML = '<div class="text-4xl mb-1">' + emoji + '</div><div class="text-sm font-medium text-slate-700">' + text + '</div>';
       document.getElementById('sticker-container').appendChild(el);
       setTimeout(() => el.remove(), 3600);
     }
@@ -343,12 +343,12 @@
     let demoInterval = null;
     function startDemoSimulation() {
       if (demoInterval) { clearInterval(demoInterval); demoInterval = null; return; }
-      updateTripStatus('กำลังเดินทาง (โหมดทดลอง) 🚗');
+      updateTripStatus('กำลังเดินทาง (โหมดทดลอง)');
       if (tripData.routeCoords && tripData.routeCoords.length > 2) {
         let step = 0;
         const jump = Math.max(1, Math.floor(tripData.routeCoords.length / 40));
         demoInterval = setInterval(() => {
-          if (step >= tripData.routeCoords.length) { clearInterval(demoInterval); demoInterval = null; updateTripStatus('ถึงที่หมายแล้ว 🎉'); return; }
+          if (step >= tripData.routeCoords.length) { clearInterval(demoInterval); demoInterval = null; updateTripStatus('ถึงที่หมายแล้ว'); return; }
           const [lat, lng] = tripData.routeCoords[step];
           const spd = Math.floor(Math.random() * 20) + 65;
           updateLocationUI(lat, lng, spd, Date.now());
