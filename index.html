@@ -41,9 +41,70 @@
   }
   .leaflet-control-attribution { font-size: 10px; }
 </style>
+    .map-search-ui {
+    position: fixed;
+    z-index: 1100;
+    top: max(68px, calc(env(safe-area-inset-top) + 60px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(560px, calc(100vw - 28px));
+  }
+  .map-search-results:empty {
+    display: none;
+  }
+  .map-search-result {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    background: white;
+    text-align: left;
+    cursor: pointer;
+  }
+  .map-search-result:hover {
+    background: #f8fafc;
+  }
+  .my-location-dot {
+    width: 20px;
+    height: 20px;
+    border: 3px solid white;
+    border-radius: 50%;
+    background: #4285f4;
+    box-shadow: 0 1px 6px rgba(0,0,0,.45);
+  }
 </head>
 <body>
 <div id="map"></div>
+  <div class="map-search-ui">
+  <form id="mapSearchForm" class="flex gap-2 rounded-full bg-white p-1.5 shadow-lg">
+    <input
+      id="mapSearchInput"
+      type="search"
+      autocomplete="off"
+      placeholder="ค้นหาสถานที่..."
+      class="min-w-0 flex-1 rounded-full px-4 py-2.5 text-sm outline-none"
+    >
+    <button
+      type="submit"
+      class="rounded-full bg-indigo-500 px-4 text-sm text-white"
+    >ค้นหา</button>
+  </form>
+  <div
+    id="mapSearchResults"
+    class="map-search-results mt-2 max-h-56 overflow-y-auto rounded-2xl bg-white text-sm shadow-lg"
+  ></div>
+</div>
+
+<button
+  id="myLocationBtn"
+  type="button"
+  aria-label="แสดงตำแหน่งปัจจุบัน"
+  title="แสดงตำแหน่งปัจจุบัน"
+  class="fixed right-3 top-1/2 z-[1100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl shadow-lg"
+>
+  <span aria-hidden="true">ตำแหน่ง</span>
+</button>
 
 <!-- Top bar -->
 <div class="fixed top-0 inset-x-0 z-[1000] p-3 pointer-events-none" style="padding-top:max(12px,env(safe-area-inset-top))">
@@ -209,6 +270,136 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
   subdomains: 'abcd',
   maxZoom: 20
 }).addTo(map);
+  /* ===== ค้นหาสถานที่บนแผนที่ ===== */
+const mapSearchForm = document.getElementById('mapSearchForm');
+const mapSearchInput = document.getElementById('mapSearchInput');
+const mapSearchResults = document.getElementById('mapSearchResults');
+
+let searchedPlaceMarker = null;
+let myLocationMarker = null;
+let myLocationAccuracy = null;
+
+mapSearchForm.addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const query = mapSearchInput.value.trim();
+  if (!query) return;
+
+  mapSearchResults.textContent = 'กำลังค้นหา...';
+
+  try {
+    const url =
+      'https://nominatim.openstreetmap.org/search' +
+      '?format=jsonv2&limit=5&accept-language=th&countrycodes=th&q=' +
+      encodeURIComponent(query);
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Search request failed');
+
+    const places = await response.json();
+    mapSearchResults.replaceChildren();
+
+    if (!places.length) {
+      mapSearchResults.textContent = 'ไม่พบสถานที่';
+      return;
+    }
+
+    places.forEach(place => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'map-search-result';
+
+      // ใช้ textContent เพื่อไม่แสดงผลข้อความค้นหาเป็น HTML
+      button.textContent = place.display_name;
+
+      button.addEventListener('click', () => {
+        const lat = Number(place.lat);
+        const lng = Number(place.lon);
+        const name = place.name || place.display_name;
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+        if (searchedPlaceMarker) map.removeLayer(searchedPlaceMarker);
+
+        searchedPlaceMarker = L.circleMarker([lat, lng], {
+          radius: 9,
+          color: '#ffffff',
+          weight: 3,
+          fillColor: '#6366f1',
+          fillOpacity: 1
+        }).addTo(map);
+
+        searchedPlaceMarker.bindPopup(
+          document.createTextNode(name)
+        ).openPopup();
+
+        map.setView([lat, lng], 15);
+        mapSearchResults.replaceChildren();
+      });
+
+      mapSearchResults.appendChild(button);
+    });
+  } catch (error) {
+    mapSearchResults.textContent = 'ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง';
+  }
+});
+
+/* ===== ปุ่มตำแหน่งปัจจุบัน ===== */
+document.getElementById('myLocationBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    toast('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง');
+    return;
+  }
+
+  toast('กำลังหาตำแหน่งปัจจุบัน...');
+
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const accuracy = position.coords.accuracy || 50;
+      const point = [lat, lng];
+
+      const currentIcon = L.divIcon({
+        className: '',
+        html: '<div class="my-location-dot"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      if (myLocationMarker) map.removeLayer(myLocationMarker);
+      if (myLocationAccuracy) map.removeLayer(myLocationAccuracy);
+
+      myLocationAccuracy = L.circle(point, {
+        radius: accuracy,
+        color: '#4285f4',
+        weight: 1,
+        fillColor: '#4285f4',
+        fillOpacity: 0.12
+      }).addTo(map);
+
+      myLocationMarker = L.marker(point, {
+        icon: currentIcon,
+        zIndexOffset: 2000
+      }).addTo(map);
+
+      map.setView(point, 16);
+      toast('แสดงตำแหน่งปัจจุบันแล้ว');
+    },
+    error => {
+      if (error.code === 1) {
+        toast('กรุณาอนุญาตให้เว็บไซต์เข้าถึงตำแหน่ง');
+      } else {
+        toast('หาตำแหน่งไม่สำเร็จ ลองเปิด GPS แล้วกดอีกครั้ง');
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 10000
+    }
+  );
+});
 
 /* ================= HELPERS ================= */
 function toast(msg, ms = 2500) {
