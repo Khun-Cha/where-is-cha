@@ -13,6 +13,7 @@
 <style>
   html, body { height: 100%; margin: 0; font-family: 'Prompt', sans-serif; background: #f1f5f9; }
   #map { position: fixed; inset: 0; z-index: 0; }
+  .leaflet-tile-pane { filter: saturate(0.82) brightness(1.03); }
   .avatar-wrap { position: relative; width: 56px; height: 56px; }
   .avatar-wrap img, .avatar-wrap .ph {
     position: absolute; inset: 0; width: 56px; height: 56px; border-radius: 9999px;
@@ -221,13 +222,12 @@ const state = { avatar: null, status: null, location: null, destination: null };
 let routeCum = null, meMarker = null, destMarker = null, routeLine = null;
 let followMe = true, fitted = false, avgSpeed = null;
 
-/* ================= MAP (ไม่ใช้ API Key) ================= */
+/* ================= MAP (OpenStreetMap ไม่ใช้ API Key) ================= */
 const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 11);
 map.attributionControl.setPosition('bottomleft');
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap &copy; CARTO',
-  subdomains: 'abcd',
-  maxZoom: 20
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19
 }).addTo(map);
 
 /* ================= HELPERS ================= */
@@ -503,7 +503,6 @@ async function performPlaceSearch(query) {
 
   try {
     const center = map.getCenter();
-    // ให้น้ำหนักผลลัพธ์ใกล้บริเวณที่เปิดแผนที่อยู่ (เช่น ภาคใต้)
     const viewbox = `${center.lng - 1.5},${center.lat + 1.5},${center.lng + 1.5},${center.lat - 1.5}`;
     const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=th&countrycodes=th&viewbox=${viewbox}&q=${encodeURIComponent(query)}`;
     
