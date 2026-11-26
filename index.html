@@ -14,24 +14,40 @@
   html, body { height: 100%; margin: 0; font-family: 'Prompt', sans-serif; background: #f1f5f9; }
   #map { position: fixed; inset: 0; z-index: 0; }
   .leaflet-tile-pane { filter: saturate(0.82) brightness(1.03); }
-  .avatar-wrap { position: relative; width: 56px; height: 56px; }
-  .avatar-wrap img, .avatar-wrap .ph {
+
+  /* Marker Styles */
+  .person-marker { position: relative; width: 56px; height: 56px; }
+  .person-marker img, .person-marker .ph {
     position: absolute; inset: 0; width: 56px; height: 56px; border-radius: 9999px;
     border: 3px solid #fff; box-shadow: 0 4px 14px rgba(0,0,0,.22); object-fit: cover;
-    background: #fbcfe8; display: flex; align-items: center; justify-content: center; font-size: 26px; z-index: 2;
+    display: flex; align-items: center; justify-content: center; font-size: 26px; z-index: 2;
   }
-  .pulse { position: absolute; inset: 0; border-radius: 9999px; background: rgba(244,114,182,.45); animation: pulse 2s ease-out infinite; z-index: 1; }
+  .person-marker.cha img, .person-marker.cha .ph { background: #e0e7ff; border-color: #6366f1; }
+  .person-marker.fan img, .person-marker.fan .ph { background: #fce7f3; border-color: #ec4899; }
+
+  .pulse { position: absolute; inset: 0; border-radius: 9999px; animation: pulse 2s ease-out infinite; z-index: 1; }
+  .person-marker.cha .pulse { background: rgba(99, 102, 241, .4); }
+  .person-marker.fan .pulse { background: rgba(236, 72, 153, .42); }
   .pulse.d2 { animation-delay: 1s; }
-  @keyframes pulse { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.6); opacity: 0; } }
+  @keyframes pulse { 0% { transform: scale(1); opacity: .85; } 100% { transform: scale(2.5); opacity: 0; } }
+
+  .marker-label {
+    position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%);
+    background: rgba(255,255,255,.95); color: #334155; font-size: 10px; font-weight: 600;
+    padding: 1px 7px; border-radius: 9999px; white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15); z-index: 3;
+  }
+
   .dest-pin {
     width: 36px; height: 36px; border-radius: 9999px; background: #fff; border: 2px solid #c7d2fe;
     box-shadow: 0 4px 12px rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; font-size: 18px;
   }
   .chip.active { background: #1e293b; color: #fff; }
   .toggle.on { background: #fb7185 !important; color: #fff !important; }
+
   .sticker-pop {
-    position: fixed; left: 50%; top: 42%; z-index: 2000; pointer-events: none;
-    display: flex; flex-direction: column; align-items: center; animation: pop 2.8s ease forwards;
+    position: fixed; left: 50%; top: 42%; z-index: 2500; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; animation: pop 3s ease forwards;
   }
   @keyframes pop {
     0%   { transform: translate(-50%, -20%) scale(.3); opacity: 0; }
@@ -41,12 +57,12 @@
     100% { transform: translate(-50%, -110%); opacity: 0; }
   }
   .leaflet-control-attribution { font-size: 10px; }
+
+  /* Search UI */
   .map-search-ui {
-    position: fixed;
-    z-index: 1100;
+    position: fixed; z-index: 1100;
     top: max(68px, calc(env(safe-area-inset-top) + 60px));
-    left: 50%;
-    transform: translateX(-50%);
+    left: 50%; transform: translateX(-50%);
     width: min(440px, calc(100vw - 24px));
   }
   .map-search-results:empty { display: none; }
@@ -58,32 +74,65 @@
   }
   .map-search-result:hover { background: #f8fafc; }
   .map-search-result:last-child { border-bottom: 0; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .animate-shake { animation: shake 0.28s ease-in-out 2; }
 </style>
 </head>
 <body>
 <div id="map"></div>
 
-<!-- Top bar + Mode Switcher -->
-<div class="fixed top-0 inset-x-0 z-[1200] p-3 flex justify-between items-center pointer-events-none" style="padding-top:max(12px,env(safe-area-inset-top))">
-  <div class="pointer-events-auto inline-flex items-center gap-2 bg-white/95 backdrop-blur rounded-full shadow-md px-4 py-2">
-    <span class="text-base font-semibold text-slate-700">Where is Cha?</span>
-    <span id="modeBadge" class="hidden text-xs bg-indigo-100 text-indigo-600 rounded-full px-2 py-0.5">คนขับ</span>
-  </div>
+<!-- หน้าจอใส่รหัสระบุตัวตน -->
+<div id="authModal" class="fixed inset-0 z-[3000] bg-slate-900/45 backdrop-blur-md flex items-center justify-center p-4">
+  <div id="authCard" class="w-full max-w-xs bg-white rounded-3xl shadow-2xl p-6 text-center border border-slate-100">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-indigo-500 to-pink-400 text-white flex items-center justify-center text-2xl shadow-md mb-3">&#128205;</div>
+    <h1 class="text-lg font-semibold text-slate-800">Where is Cha?</h1>
+    <p class="text-xs text-slate-400 mt-1">ใส่รหัสเพื่อระบุตัวตนก่อนเข้าใช้งาน</p>
 
-  <div class="pointer-events-auto inline-flex bg-white/95 backdrop-blur rounded-full shadow-md p-1 text-xs">
-    <button id="btnViewerMode" type="button" class="px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition">แฟนดู</button>
-    <button id="btnDriverMode" type="button" class="px-3 py-1.5 rounded-full font-medium text-slate-500 transition">คนขับ</button>
+    <form id="authForm" class="mt-4 space-y-3">
+      <input
+        id="passcodeInput"
+        type="password"
+        inputmode="numeric"
+        maxlength="12"
+        placeholder="กรอกรหัสผ่าน..."
+        class="w-full text-center tracking-widest text-lg rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 outline-none focus:border-indigo-400 focus:bg-white transition"
+        required
+      >
+      <div id="authError" class="hidden text-xs text-rose-500">รหัสไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง</div>
+      <button type="submit" class="w-full rounded-2xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium py-3 shadow-md active:scale-[0.98] transition">เข้าสู่แผนที่</button>
+    </form>
   </div>
 </div>
 
-<!-- กล่องค้นหาจุดหมายที่จะไป (พร้อมคาดการณ์สถานที่อัตโนมัติขณะพิมพ์) -->
+<!-- Top bar + Mode Switcher -->
+<div class="fixed top-0 inset-x-0 z-[1200] p-3 flex justify-between items-center gap-2 pointer-events-none" style="padding-top:max(12px,env(safe-area-inset-top))">
+  <button id="switchUserBtn" type="button" title="แตะเพื่อเปลี่ยนผู้ใช้" class="pointer-events-auto inline-flex items-center gap-1.5 bg-white/95 backdrop-blur rounded-full shadow-md px-3.5 py-2 active:scale-95 transition">
+    <span class="text-sm font-semibold text-slate-700">Where is Cha?</span>
+    <span id="meBadge" class="hidden text-[11px] font-medium rounded-full px-2 py-0.5 bg-indigo-100 text-indigo-600">คุณชา &#8644;</span>
+  </button>
+
+  <div class="pointer-events-auto inline-flex bg-white/95 backdrop-blur rounded-full shadow-md p-1 text-xs">
+    <button id="btnTravelMode" type="button" class="px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition flex items-center gap-1.5">
+      <span>โหมดเดินทาง</span>
+      <span id="gpsLiveDot" class="hidden w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+    </button>
+    <button id="btnWatchMode" type="button" class="px-3 py-1.5 rounded-full font-medium text-slate-500 transition">ดูอีกฝ่าย</button>
+  </div>
+</div>
+
+<!-- กล่องค้นหาจุดหมาย (แสดงเฉพาะในโหมดเดินทาง) -->
 <div id="topSearchWrapper" class="map-search-ui hidden">
   <form id="mapSearchForm" class="flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur p-1.5 shadow-lg border border-slate-100">
     <input
       id="mapSearchInput"
       type="search"
       autocomplete="off"
-      placeholder="พิมพ์ชื่อสถานที่ที่จะไป เช่น ม.ทักษิณ, พัทลุง..."
+      placeholder="ค้นหาจุดหมายที่จะไป เช่น ม.ทักษิณ, พัทลุง..."
       class="min-w-0 flex-1 rounded-full px-4 py-2 text-sm outline-none bg-transparent"
     >
     <button id="clearSearchBtn" type="button" class="hidden text-slate-400 hover:text-slate-600 px-2 text-sm" title="ล้างคำค้นหา">&#10005;</button>
@@ -92,14 +141,23 @@
   <div id="mapSearchResults" class="map-search-results mt-2 max-h-64 overflow-y-auto rounded-2xl bg-white/98 backdrop-blur text-sm shadow-xl border border-slate-100"></div>
 </div>
 
-<!-- ปุ่มตำแหน่งปัจจุบัน -->
-<button
-  id="myLocationBtn"
-  type="button"
-  aria-label="แสดงตำแหน่งปัจจุบัน"
-  title="แสดงตำแหน่งปัจจุบัน"
-  class="fixed right-3 top-1/2 z-[1100] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg shadow-lg border border-slate-100 active:scale-95 transition"
->&#127919;</button>
+<!-- ปุ่มเครื่องมือด้านขวา (ดูทั้งคู่ + ตำแหน่งปัจจุบัน) -->
+<div class="fixed right-3 top-1/2 z-[1100] -translate-y-1/2 flex flex-col gap-2.5">
+  <button
+    id="fitBothBtn"
+    type="button"
+    aria-label="ดูตำแหน่งทั้งคู่"
+    title="ดูตำแหน่งทั้งคุณชาและแฟน"
+    class="flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-lg shadow-lg border border-slate-100 active:scale-95 transition"
+  >&#128101;</button>
+  <button
+    id="myLocationBtn"
+    type="button"
+    aria-label="แสดงตำแหน่งปัจจุบัน"
+    title="แสดงตำแหน่งปัจจุบัน"
+    class="flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-lg shadow-lg border border-slate-100 active:scale-95 transition"
+  >&#127919;</button>
+</div>
 
 <!-- Toast -->
 <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 top-32 z-[2500] bg-slate-800/90 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90vw] text-center"></div>
@@ -138,19 +196,19 @@
           <div class="rounded-2xl bg-slate-50 py-2"><div id="etaText" class="text-lg font-semibold text-slate-700">-</div><div class="text-[11px] text-slate-400">ถึงประมาณ</div></div>
         </div>
 
-        <!-- Viewer -->
-        <div id="viewerPanel" class="mt-3">
-          <div class="text-xs text-slate-400 mb-1.5">ส่งกำลังใจ</div>
+        <!-- Watch Partner Panel (โหมดดูอีกฝ่าย) -->
+        <div id="watchPanel" class="hidden mt-3">
+          <div id="stickerTitle" class="text-xs text-slate-400 mb-1.5">ส่งกำลังใจ</div>
           <div id="stickerBtns" class="grid grid-cols-4 gap-2"></div>
         </div>
 
-        <!-- Driver -->
-        <div id="driverPanel" class="hidden mt-3 space-y-3">
+        <!-- Travel Panel (โหมดเดินทางของฉัน) -->
+        <div id="travelPanel" class="hidden mt-3 space-y-3">
           <div class="flex items-center gap-3">
-            <img id="avatarPreview" alt="" class="w-11 h-11 rounded-full object-cover bg-pink-100 border-2 border-white shadow"
+            <img id="avatarPreview" alt="" class="w-11 h-11 rounded-full object-cover bg-indigo-50 border-2 border-white shadow"
                  src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
             <label class="flex-1 text-center text-xs rounded-xl border border-dashed border-slate-300 py-2.5 text-slate-500 cursor-pointer hover:bg-slate-50">
-              เปลี่ยนรูปอวตาร<input id="avatarInput" type="file" accept="image/*" class="hidden">
+              เปลี่ยนรูปอวตารของฉัน<input id="avatarInput" type="file" accept="image/*" class="hidden">
             </label>
           </div>
 
@@ -160,7 +218,7 @@
           </div>
 
           <div>
-            <div class="text-xs text-slate-400 mb-1">สถานะ</div>
+            <div class="text-xs text-slate-400 mb-1">สถานะของฉัน</div>
             <div id="statusBtns" class="grid grid-cols-3 gap-2"></div>
           </div>
 
@@ -188,13 +246,25 @@ const firebaseConfig = {
   messagingSenderId: "1007262654950",
   appId: "1:1007262654950:web:d4bc25cf1b4df5730ab627"
 };
+
+/* รหัสยืนยันตัวตน (สามารถแก้ไขตัวเลขรหัสได้ตรงนี้) */
+const PASSCODES = {
+  '1111': 'cha', // รหัสของคุณชา
+  '2222': 'fan'  // รหัสของแฟน
+};
+
+const ROLE_META = {
+  cha: { name: 'คุณชา', emoji: '\uD83E\uDDD1\uD83C\uDFFB', badgeClass: 'bg-indigo-100 text-indigo-600' },
+  fan: { name: 'แฟน',   emoji: '\uD83D\uDC69\uD83C\uDFFB', badgeClass: 'bg-pink-100 text-pink-600' }
+};
+
 const DEFAULT_CENTER = [7.1897, 100.5954]; // สงขลา
 const DEMO_DEST = { lat: 7.6166, lng: 100.0740, name: 'พัทลุง' };
 const GPS_INTERVAL_MS = 3000;
 const FALLBACK_SPEED = 60;
 const DEMO_SECONDS = 60;
 
-const E = { car: '\uD83D\uDE97', coffee: '\u2615', flag: '\uD83C\uDFC1', heart: '\u2764\uFE0F', pin: '\uD83D\uDCCD', person: '\uD83D\uDE4B' };
+const E = { car: '\uD83D\uDE97', coffee: '\u2615', flag: '\uD83C\uDFC1', heart: '\u2764\uFE0F', pin: '\uD83D\uDCCD' };
 const STATUSES = [
   { text: 'กำลังเดินทาง', emoji: E.car },
   { text: 'แวะพัก', emoji: E.coffee },
@@ -210,7 +280,7 @@ const STICKERS = [
 /* ================= INIT ================= */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const tripRef = db.ref('trip');
+const usersRef = db.ref('users');
 const TS = firebase.database.ServerValue.TIMESTAMP;
 const $ = id => document.getElementById(id);
 
@@ -218,11 +288,22 @@ let serverOffset = 0;
 db.ref('.info/serverTimeOffset').on('value', s => serverOffset = s.val() || 0);
 const serverNow = () => Date.now() + serverOffset;
 
-const state = { avatar: null, status: null, location: null, destination: null };
-let routeCum = null, meMarker = null, destMarker = null, routeLine = null;
-let followMe = true, fitted = false, avgSpeed = null;
+let myRole = null;       // 'cha' หรือ 'fan'
+let partnerRole = null;  // ฝ่ายตรงข้าม
+let currentMode = 'travel'; // 'travel' (โหมดเดินทาง) | 'watch' (โหมดดูอีกฝ่าย)
 
-/* ================= MAP (OpenStreetMap ไม่ใช้ API Key) ================= */
+const usersData = { cha: {}, fan: {} };
+const markers = { cha: null, fan: null };
+const moveRaf = { cha: null, fan: null };
+const avgSpeeds = { cha: null, fan: null };
+
+let routeCum = null, destMarker = null, routeLine = null, lastDestSig = '';
+let followMe = true, initialCentered = false;
+let stickerRef = null, stickerReady = false;
+
+const getFocusRole = () => (currentMode === 'travel' ? myRole : partnerRole);
+
+/* ================= MAP ================= */
 const map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 11);
 map.attributionControl.setPosition('bottomleft');
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -258,8 +339,9 @@ function downsample(arr, max) {
 const AVATAR_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const safeAvatar = s => (typeof s === 'string' && AVATAR_RE.test(s)) ? s : null;
 
-function remainingKm(pos) {
-  const d = state.destination; if (!d) return null;
+function remainingKm(role, pos) {
+  const d = usersData[role]?.destination;
+  if (!d) return null;
   const rc = d.routeCoords;
   if (!rc || rc.length < 2 || !routeCum) return hav(pos, [d.destLat, d.destLng]);
   let best = 0, bd = Infinity;
@@ -267,118 +349,182 @@ function remainingKm(pos) {
   return bd + (routeCum[routeCum.length - 1] - routeCum[best]);
 }
 
-/* ================= MARKERS ================= */
-function avatarIcon() {
-  const src = safeAvatar(state.avatar);
-  const inner = src ? `<img src="${src}" alt="">` : `<div class="ph">${E.person}</div>`;
-  return L.divIcon({ className: '', iconSize: [56, 56], iconAnchor: [28, 28],
-    html: `<div class="avatar-wrap"><span class="pulse"></span><span class="pulse d2"></span>${inner}</div>` });
+/* ================= MARKERS (แสดงทั้งคุณชาและแฟนพร้อมกัน) ================= */
+function buildPersonIcon(role) {
+  const meta = ROLE_META[role];
+  const src = safeAvatar(usersData[role]?.avatar);
+  const inner = src ? `<img src="${src}" alt="">` : `<div class="ph">${meta.emoji}</div>`;
+  return L.divIcon({
+    className: '',
+    iconSize: [56, 56],
+    iconAnchor: [28, 28],
+    html: `<div class="person-marker ${role}"><span class="pulse"></span><span class="pulse d2"></span>${inner}<div class="marker-label">${meta.name}</div></div>`
+  });
 }
 const destIcon = L.divIcon({ className: '', iconSize: [36, 36], iconAnchor: [18, 18], html: `<div class="dest-pin">${E.flag}</div>` });
 
-function moveMarker(to) {
-  const from = meMarker.getLatLng(), start = performance.now(), dur = 900;
-  cancelAnimationFrame(moveMarker._raf);
+function smoothMoveMarker(role, to) {
+  const m = markers[role];
+  if (!m) return;
+  const from = m.getLatLng(), start = performance.now(), dur = 900;
+  cancelAnimationFrame(moveRaf[role]);
   const step = t => {
     const k = Math.min(1, (t - start) / dur);
-    meMarker.setLatLng([from.lat + (to[0] - from.lat) * k, from.lng + (to[1] - from.lng) * k]);
-    if (k < 1) moveMarker._raf = requestAnimationFrame(step);
+    m.setLatLng([from.lat + (to[0] - from.lat) * k, from.lng + (to[1] - from.lng) * k]);
+    if (k < 1) moveRaf[role] = requestAnimationFrame(step);
   };
-  moveMarker._raf = requestAnimationFrame(step);
+  moveRaf[role] = requestAnimationFrame(step);
 }
-function fitAll() {
+
+function renderPersonMarker(role) {
+  const loc = usersData[role]?.location;
+  if (!loc || typeof loc.lat !== 'number') return;
+  const pos = [loc.lat, loc.lng];
+  const zIndex = (role === getFocusRole()) ? 1000 : 800;
+
+  if (!markers[role]) {
+    markers[role] = L.marker(pos, { icon: buildPersonIcon(role), zIndexOffset: zIndex }).addTo(map);
+  } else {
+    markers[role].setIcon(buildPersonIcon(role));
+    markers[role].setZIndexOffset(zIndex);
+    smoothMoveMarker(role, pos);
+  }
+
+  const spd = loc.speed || 0;
+  if (spd > 15) avgSpeeds[role] = avgSpeeds[role] ? avgSpeeds[role] * 0.8 + spd * 0.2 : spd;
+}
+
+function fitBothPeople() {
   const pts = [];
-  if (state.location) pts.push([state.location.lat, state.location.lng]);
-  if (state.destination) pts.push([state.destination.destLat, state.destination.destLng]);
+  ['cha', 'fan'].forEach(r => {
+    const l = usersData[r]?.location;
+    if (l && typeof l.lat === 'number') pts.push([l.lat, l.lng]);
+  });
+  if (!pts.length) return toast('ยังไม่มีพิกัดของทั้งคู่บนแผนที่');
+  if (pts.length === 1) {
+    map.setView(pts[0], 14);
+    return toast('แสดงตำแหน่งที่มีอยู่แล้ว');
+  }
+  const b = L.latLngBounds(pts);
+  map.fitBounds(b, { paddingTopLeft: [50, 120], paddingBottomRight: [50, 320], maxZoom: 15 });
+  setFollow(false);
+  toast('แสดงตำแหน่งทั้งคุณชาและแฟน');
+}
+
+function fitFocusRoute() {
+  const role = getFocusRole();
+  if (!role) return;
+  const loc = usersData[role]?.location;
+  const dest = usersData[role]?.destination;
+  const pts = [];
+  if (loc) pts.push([loc.lat, loc.lng]);
+  if (dest) pts.push([dest.destLat, dest.destLng]);
   if (!routeLine && pts.length === 1) return map.setView(pts[0], 14);
   let b = routeLine ? routeLine.getBounds() : null;
   pts.forEach(p => b ? b.extend(p) : (b = L.latLngBounds([p, p])));
   if (b) map.fitBounds(b, { paddingTopLeft: [40, 120], paddingBottomRight: [40, 320] });
 }
 
-/* ================= RENDER ================= */
-function renderAvatar() {
-  if (meMarker) meMarker.setIcon(avatarIcon());
-  const s = safeAvatar(state.avatar); if (s) $('avatarPreview').src = s;
-}
-function renderStatus() {
-  const s = state.status, st = STATUSES.find(x => x.text === s);
-  $('statusText').textContent = s ? `${st ? st.emoji + ' ' : ''}${s}` : 'รอข้อมูล...';
-  document.querySelectorAll('[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === s));
-  renderProgress();
-}
-function renderLocation() {
-  const l = state.location; if (!l) return;
-  const pos = [l.lat, l.lng];
-  if (!meMarker) meMarker = L.marker(pos, { icon: avatarIcon(), zIndexOffset: 1000 }).addTo(map);
-  else moveMarker(pos);
-  if (!fitted) { fitted = true; fitAll(); } else if (followMe) map.panTo(pos);
-  const spd = l.speed || 0;
-  $('speedText').textContent = Math.round(spd);
-  if (spd > 15) avgSpeed = avgSpeed ? avgSpeed * 0.8 + spd * 0.2 : spd;
-  renderUpdated(); renderProgress();
-}
-function renderUpdated() {
-  const l = state.location, el = $('updatedText');
-  if (!l || !l.updatedAt) { el.textContent = 'ยังไม่มีข้อมูลตำแหน่ง'; return; }
-  const sec = Math.max(0, Math.round((serverNow() - l.updatedAt) / 1000));
-  let txt = sec < 15 ? 'อัปเดตเมื่อสักครู่'
-    : sec < 60 ? `อัปเดต ${sec} วินาทีที่แล้ว`
-    : sec < 3600 ? `อัปเดต ${Math.floor(sec / 60)} นาทีที่แล้ว`
-    : `อัปเดต ${Math.floor(sec / 3600)} ชม. ที่แล้ว`;
-  const stale = sec > 180 && state.status !== 'ถึงแล้ว';
-  if (stale) txt += ' · สัญญาณอาจขาดหาย';
-  el.textContent = txt;
-  el.className = 'text-xs ' + (stale ? 'text-amber-500' : 'text-slate-400');
-}
-setInterval(renderUpdated, 10000);
+/* ================= RENDER FOCUSED VIEW ================= */
+function renderFocusUI() {
+  const role = getFocusRole();
+  if (!role) return;
+  const data = usersData[role] || {};
+  const meta = ROLE_META[role];
 
-function renderDestination() {
-  const d = state.destination;
-  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-  if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
-  routeCum = null;
-  if (!d) { $('destText').textContent = 'ยังไม่ได้ตั้งจุดหมาย'; renderProgress(); return; }
-  const rc = Array.isArray(d.routeCoords) ? d.routeCoords.filter(p => Array.isArray(p) && p.length === 2) : [];
-  d.routeCoords = rc;
-  if (rc.length > 1) {
-    routeLine = L.polyline(rc, { color: '#6366f1', weight: 6, opacity: .85, lineCap: 'round' }).addTo(map);
-    routeCum = buildCum(rc);
+  // 1. Header & Status
+  const s = data.status;
+  const st = STATUSES.find(x => x.text === s);
+  $('statusText').textContent = s ? `${meta.name} · ${st ? st.emoji + ' ' : ''}${s}` : `${meta.name} · รอข้อมูล...`;
+
+  if (role === myRole) {
+    document.querySelectorAll('[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === s));
+    const myAv = safeAvatar(usersData[myRole]?.avatar);
+    if (myAv) $('avatarPreview').src = myAv;
   }
-  destMarker = L.marker([d.destLat, d.destLng], { icon: destIcon }).addTo(map);
-  $('destText').textContent = 'ไป ' + (d.destName || 'จุดหมาย');
-  if (state.location) { fitted = true; fitAll(); }
-  renderProgress();
-}
-function renderProgress() {
-  const d = state.destination, l = state.location;
-  const set = (pct, rem, eta, detail) => {
-    $('progressBar').style.width = pct + '%'; $('pctText').textContent = Math.round(pct) + '%';
-    $('remainText').textContent = rem; $('etaText').textContent = eta; $('etaDetail').textContent = detail;
+
+  // 2. Updated Time
+  const l = data.location, el = $('updatedText');
+  if (!l || !l.updatedAt) {
+    el.textContent = `ยังไม่มีข้อมูลตำแหน่งของ${meta.name}`;
+    el.className = 'text-xs text-slate-400';
+  } else {
+    const sec = Math.max(0, Math.round((serverNow() - l.updatedAt) / 1000));
+    let txt = sec < 15 ? 'อัปเดตเมื่อสักครู่'
+      : sec < 60 ? `อัปเดต ${sec} วินาทีที่แล้ว`
+      : sec < 3600 ? `อัปเดต ${Math.floor(sec / 60)} นาทีที่แล้ว`
+      : `อัปเดต ${Math.floor(sec / 3600)} ชม. ที่แล้ว`;
+    const stale = sec > 180 && s !== 'ถึงแล้ว';
+    if (stale) txt += ' · สัญญาณอาจขาดหาย';
+    el.textContent = txt;
+    el.className = 'text-xs ' + (stale ? 'text-amber-500' : 'text-slate-400');
+  }
+
+  // 3. Destination & Route Line (วาดใหม่เฉพาะเมื่อจุดหมายเปลี่ยน)
+  const d = data.destination;
+  const sig = d ? `${role}:${d.destLat},${d.destLng},${d.destName}` : `${role}:none`;
+  if (sig !== lastDestSig) {
+    lastDestSig = sig;
+    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+    if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
+    routeCum = null;
+
+    if (d) {
+      const rc = Array.isArray(d.routeCoords) ? d.routeCoords.filter(p => Array.isArray(p) && p.length === 2) : [];
+      d.routeCoords = rc;
+      const lineColor = role === 'cha' ? '#6366f1' : '#ec4899';
+      if (rc.length > 1) {
+        routeLine = L.polyline(rc, { color: lineColor, weight: 6, opacity: .85, lineCap: 'round' }).addTo(map);
+        routeCum = buildCum(rc);
+      }
+      destMarker = L.marker([d.destLat, d.destLng], { icon: destIcon }).addTo(map);
+      if (l) fitFocusRoute();
+    }
+  }
+
+  $('destText').textContent = d ? `ไป ${d.destName || 'จุดหมาย'}` : 'ยังไม่ได้ตั้งจุดหมาย';
+
+  // 4. Stats & Progress Bar
+  $('speedText').textContent = l ? Math.round(l.speed || 0) : '0';
+  const setProg = (pct, rem, eta, detail) => {
+    $('progressBar').style.width = pct + '%';
+    $('pctText').textContent = Math.round(pct) + '%';
+    $('remainText').textContent = rem;
+    $('etaText').textContent = eta;
+    $('etaDetail').textContent = detail;
   };
-  if (!d || !l) return set(0, '-', '-', '');
-  if (state.status === 'ถึงแล้ว') return set(100, '0', 'ถึงแล้ว', 'ถึงที่หมายเรียบร้อย');
-  const rem = remainingKm([l.lat, l.lng]);
-  const total = Math.max(d.totalDistanceKm || 0, rem, 0.1);
-  const pct = Math.max(0, Math.min(100, (1 - rem / total) * 100));
-  const spd = avgSpeed || FALLBACK_SPEED;
-  const mins = Math.round(rem / spd * 60);
-  const hhmm = new Date(Date.now() + mins * 60000).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  const dur = mins < 60 ? `${mins} นาที` : `${Math.floor(mins / 60)} ชม. ${mins % 60} นาที`;
-  set(pct, rem < 10 ? rem.toFixed(1) : Math.round(rem), hhmm, `อีกประมาณ ${dur} (ความเร็วเฉลี่ย ${Math.round(spd)} km/h)`);
+
+  if (!d || !l) {
+    setProg(0, '-', '-', '');
+  } else if (s === 'ถึงแล้ว') {
+    setProg(100, '0', 'ถึงแล้ว', `${meta.name}ถึงที่หมายเรียบร้อย`);
+  } else {
+    const rem = remainingKm(role, [l.lat, l.lng]);
+    const total = Math.max(d.totalDistanceKm || 0, rem, 0.1);
+    const pct = Math.max(0, Math.min(100, (1 - rem / total) * 100));
+    const spd = avgSpeeds[role] || FALLBACK_SPEED;
+    const mins = Math.round(rem / spd * 60);
+    const hhmm = new Date(Date.now() + mins * 60000).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const dur = mins < 60 ? `${mins} นาที` : `${Math.floor(mins / 60)} ชม. ${mins % 60} นาที`;
+    setProg(pct, rem < 10 ? rem.toFixed(1) : Math.round(rem), hhmm, `อีกประมาณ ${dur} (ความเร็วเฉลี่ย ${Math.round(spd)} km/h)`);
+  }
 }
+
+setInterval(renderFocusUI, 10000);
 
 /* ================= STICKERS ================= */
 function popSticker(s) {
   const el = document.createElement('div'); el.className = 'sticker-pop';
+  const senderName = s.from && ROLE_META[s.from] ? `จาก${ROLE_META[s.from].name}: ` : '';
   const em = document.createElement('div'); em.className = 'text-7xl'; em.textContent = s.emoji;
   const tx = document.createElement('div');
-  tx.className = 'mt-2 bg-white/95 rounded-full shadow-lg px-5 py-2 text-lg font-medium text-pink-500 whitespace-nowrap';
-  tx.textContent = s.text;
+  tx.className = 'mt-2 bg-white/95 rounded-full shadow-lg px-5 py-2 text-base font-medium text-pink-500 whitespace-nowrap';
+  tx.textContent = senderName + s.text;
   el.append(em, tx); document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
+  setTimeout(() => el.remove(), 3200);
   if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
 }
+
 function buildStickers() {
   const box = $('stickerBtns'); box.innerHTML = '';
   STICKERS.forEach(s => {
@@ -389,36 +535,113 @@ function buildStickers() {
     box.appendChild(b);
   });
 }
+
 let lastSticker = 0;
 async function sendSticker(s) {
+  if (!partnerRole) return;
   if (Date.now() - lastSticker < 3000) return toast('ส่งถี่ไปนิด รอแป๊บนะ');
   lastSticker = Date.now();
   try {
-    await tripRef.child('sticker').set({ emoji: s.emoji, text: s.text, timestamp: TS });
-    toast('ส่งแล้ว!');
+    await usersRef.child(`${partnerRole}/sticker`).set({
+      emoji: s.emoji, text: s.text, from: myRole, timestamp: TS
+    });
+    toast(`ส่งกำลังใจให้${ROLE_META[partnerRole].name}แล้ว!`);
   } catch (e) { toast('ส่งไม่สำเร็จ (ตรวจสอบ Firebase Rules)'); }
 }
 
-/* ================= REALTIME LISTENERS ================= */
-let stickerReady = false;
-tripRef.child('avatar').on('value', s => { state.avatar = s.val(); renderAvatar(); });
-tripRef.child('status').on('value', s => { state.status = s.val(); renderStatus(); });
-tripRef.child('location').on('value', s => { state.location = s.val(); renderLocation(); });
-tripRef.child('destination').on('value', s => { state.destination = s.val(); renderDestination(); });
-tripRef.child('sticker').on('value', s => {
-  const v = s.val();
-  if (!stickerReady) { stickerReady = true; return; }
-  if (v && v.emoji) popSticker(v);
+/* ================= FIREBASE LISTENERS ================= */
+function onUserUpdated(role) {
+  renderPersonMarker(role);
+  if (role === getFocusRole()) {
+    renderFocusUI();
+    const loc = usersData[role]?.location;
+    if (loc && followMe) {
+      map.panTo([loc.lat, loc.lng]);
+    } else if (loc && !initialCentered) {
+      initialCentered = true;
+      map.setView([loc.lat, loc.lng], 14);
+    }
+  }
+}
+
+usersRef.child('cha').on('value', s => { usersData.cha = s.val() || {}; onUserUpdated('cha'); });
+usersRef.child('fan').on('value', s => { usersData.fan = s.val() || {}; onUserUpdated('fan'); });
+
+function bindMyStickerListener(role) {
+  if (stickerRef) stickerRef.off();
+  stickerReady = false;
+  stickerRef = usersRef.child(`${role}/sticker`);
+  stickerRef.on('value', s => {
+    const v = s.val();
+    if (!stickerReady) { stickerReady = true; return; }
+    if (v && v.emoji) popSticker(v);
+  });
+}
+
+/* ================= AUTHENTICATION (ใส่รหัสระบุตัวตน) ================= */
+function loginAs(role) {
+  myRole = role;
+  partnerRole = (role === 'cha') ? 'fan' : 'cha';
+  localStorage.setItem('wic_role', role);
+
+  const myMeta = ROLE_META[myRole];
+  const partnerMeta = ROLE_META[partnerRole];
+
+  $('authModal').classList.add('hidden');
+  const badge = $('meBadge');
+  badge.textContent = `${myMeta.name} \u21C4`;
+  badge.className = `text-[11px] font-medium rounded-full px-2.5 py-0.5 ${myMeta.badgeClass}`;
+  badge.classList.remove('hidden');
+
+  $('stickerTitle').textContent = `ส่งกำลังใจให้${partnerMeta.name}`;
+  bindMyStickerListener(myRole);
+
+  // อัปเดตลำดับชั้นหมุดและหน้าจอ
+  renderPersonMarker('cha');
+  renderPersonMarker('fan');
+  switchMode('travel');
+  toast(`ยินดีต้อนรับ ${myMeta.name}!`);
+}
+
+$('authForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const code = $('passcodeInput').value.trim();
+  const role = PASSCODES[code];
+  if (!role) {
+    $('authError').classList.remove('hidden');
+    const card = $('authCard');
+    card.classList.remove('animate-shake');
+    void card.offsetWidth;
+    card.classList.add('animate-shake');
+    $('passcodeInput').value = '';
+    $('passcodeInput').focus();
+    return;
+  }
+  $('authError').classList.add('hidden');
+  $('passcodeInput').value = '';
+  loginAs(role);
+});
+
+$('switchUserBtn').addEventListener('click', () => {
+  if (watchId !== null) stopGPS();
+  if (demoTimer) stopDemo();
+  $('authModal').classList.remove('hidden');
+  $('passcodeInput').focus();
 });
 
 /* ================= UI COMMON ================= */
 $('handle').onclick = () => $('sheetBody').classList.toggle('hidden');
+
 function setFollow(on) {
-  followMe = on; $('followBtn').textContent = on ? 'ตามหมุด: เปิด' : 'ตามหมุด: ปิด';
-  if (on && state.location) map.panTo([state.location.lat, state.location.lng]);
+  followMe = on;
+  $('followBtn').textContent = on ? 'ตามหมุด: เปิด' : 'ตามหมุด: ปิด';
+  const focusLoc = usersData[getFocusRole()]?.location;
+  if (on && focusLoc) map.panTo([focusLoc.lat, focusLoc.lng]);
 }
 $('followBtn').onclick = () => setFollow(!followMe);
 map.on('dragstart', () => { if (followMe) setFollow(false); });
+
+$('fitBothBtn').addEventListener('click', fitBothPeople);
 
 $('myLocationBtn').addEventListener('click', () => {
   if (!navigator.geolocation) return toast('เบราว์เซอร์ไม่รองรับ GPS');
@@ -430,9 +653,10 @@ $('myLocationBtn').addEventListener('click', () => {
   }, () => toast('กรุณาอนุญาตการเข้าถึง GPS'), { enableHighAccuracy: true, timeout: 10000 });
 });
 
-/* ================= DRIVER & AUTOCOMPLETE SEARCH ================= */
+/* ================= WRITE HELPERS (เขียนข้อมูลของฉัน) ================= */
 async function dw(path, val) {
-  try { await tripRef.child(path).set(val); return true; }
+  if (!myRole) return false;
+  try { await usersRef.child(`${myRole}/${path}`).set(val); return true; }
   catch (e) { toast('บันทึกไม่สำเร็จ (ตรวจสอบ Firebase Rules)'); return false; }
 }
 function setBtn(id, on, onText, offText) { const b = $(id); b.textContent = on ? onText : offText; b.classList.toggle('on', on); }
@@ -461,10 +685,12 @@ function getPositionOnce() {
 
 let routing = false;
 async function setDestination(lat, lng, name) {
-  if (routing) return; routing = true;
+  if (routing || !myRole) return;
+  routing = true;
   toast('กำลังคำนวณเส้นทาง...', 10000);
   try {
-    let start = state.location ? [state.location.lat, state.location.lng] : await getPositionOnce();
+    const myLoc = usersData[myRole]?.location;
+    let start = myLoc ? [myLoc.lat, myLoc.lng] : await getPositionOnce();
     if (!start) start = DEFAULT_CENTER;
     let coords, km;
     try {
@@ -476,7 +702,7 @@ async function setDestination(lat, lng, name) {
     } catch (e) {
       coords = [start, [lat, lng]]; km = hav(start, [lat, lng]);
     }
-    if (!state.location) await dw('location', { lat: start[0], lng: start[1], speed: 0, updatedAt: TS });
+    if (!myLoc) await dw('location', { lat: start[0], lng: start[1], speed: 0, updatedAt: TS });
     const ok = await dw('destination', {
       destLat: +lat.toFixed(6), destLng: +lng.toFixed(6), destName: String(name).slice(0, 80),
       totalDistanceKm: +km.toFixed(1), routeCoords: downsample(coords, 400)
@@ -485,7 +711,7 @@ async function setDestination(lat, lng, name) {
   } finally { routing = false; }
 }
 
-/* คาดการณ์สถานที่อัตโนมัติขณะพิมพ์ (Debounce Autocomplete) */
+/* ================= AUTOCOMPLETE SEARCH ================= */
 let searchTimer = null;
 let searchAbortController = null;
 
@@ -505,7 +731,7 @@ async function performPlaceSearch(query) {
     const center = map.getCenter();
     const viewbox = `${center.lng - 1.5},${center.lat + 1.5},${center.lng + 1.5},${center.lat - 1.5}`;
     const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=th&countrycodes=th&viewbox=${viewbox}&q=${encodeURIComponent(query)}`;
-    
+
     const response = await fetch(url, { signal: searchAbortController.signal });
     const places = await response.json();
     resultsBox.replaceChildren();
@@ -519,7 +745,7 @@ async function performPlaceSearch(query) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'map-search-result';
-      
+
       const parts = place.display_name.split(',').map(s => s.trim());
       const shortName = place.name || parts[0];
       const subAddress = parts.slice(1, 4).join(', ');
@@ -571,7 +797,7 @@ $('mapSearchForm').addEventListener('submit', event => {
   performPlaceSearch($('mapSearchInput').value.trim());
 });
 
-/* GPS + Wake Lock */
+/* ================= GPS & DEMO ================= */
 let watchId = null, lastSent = 0, prevFix = null, wakeLock = null;
 async function requestWakeLock() {
   try {
@@ -593,6 +819,7 @@ function onFix(p) {
   prevFix = { pos, t }; lastSent = t;
   dw('location', { lat: +pos[0].toFixed(6), lng: +pos[1].toFixed(6), speed: Math.round(kmh || 0), updatedAt: TS });
 }
+
 function startGPS() {
   if (!navigator.geolocation) return toast('อุปกรณ์นี้ไม่รองรับ GPS');
   if (demoTimer) stopDemo();
@@ -601,22 +828,27 @@ function startGPS() {
     { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
   requestWakeLock();
   setBtn('gpsBtn', true, 'หยุดแชร์ GPS', 'เริ่มแชร์ GPS');
-  toast('เริ่มแชร์ตำแหน่งแล้ว');
+  $('gpsLiveDot').classList.remove('hidden');
+  toast('เริ่มแชร์ตำแหน่งของฉันแล้ว');
 }
 function stopGPS() {
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
   watchId = null; prevFix = null; releaseWakeLock();
   setBtn('gpsBtn', false, 'หยุดแชร์ GPS', 'เริ่มแชร์ GPS');
+  $('gpsLiveDot').classList.add('hidden');
 }
 
-/* Demo simulation */
 let demoTimer = null;
 async function startDemo() {
   if (watchId !== null) stopGPS();
-  const hasRoute = () => state.destination && Array.isArray(state.destination.routeCoords) && state.destination.routeCoords.length > 1;
+  const hasRoute = () => {
+    const d = usersData[myRole]?.destination;
+    return d && Array.isArray(d.routeCoords) && d.routeCoords.length > 1;
+  };
   if (!hasRoute()) await setDestination(DEMO_DEST.lat, DEMO_DEST.lng, DEMO_DEST.name + ' (เดโม)');
   if (!hasRoute()) return toast('ยังไม่มีเส้นทางให้ทดลองวิ่ง');
-  const rc = state.destination.routeCoords, cum = buildCum(rc), total = cum[cum.length - 1];
+
+  const rc = usersData[myRole].destination.routeCoords, cum = buildCum(rc), total = cum[cum.length - 1];
   const step = total / DEMO_SECONDS;
   let traveled = 0;
   dw('status', 'กำลังเดินทาง');
@@ -635,7 +867,7 @@ function stopDemo() {
   setBtn('demoBtn', false, 'หยุดทดลอง', 'ทดลองวิ่ง');
 }
 
-/* Pick on map */
+/* ================= MODE SWITCHER (โหมดเดินทาง / โหมดดูอีกฝ่าย) ================= */
 let pickMode = false;
 function updatePick() {
   setBtn('pickBtn', pickMode, 'แตะบนแผนที่ได้เลย (กดเพื่อยกเลิก)', 'แตะแผนที่เพื่อปักจุดหมาย');
@@ -652,21 +884,26 @@ function buildStatusBtns() {
     b.onclick = () => dw('status', s.text);
     box.appendChild(b);
   });
-  renderStatus();
 }
 
-let driverBound = false;
-function switchMode(isDriver) {
-  $('modeBadge').classList.toggle('hidden', !isDriver);
-  $('viewerPanel').classList.toggle('hidden', isDriver);
-  $('driverPanel').classList.toggle('hidden', !isDriver);
-  $('topSearchWrapper').classList.toggle('hidden', !isDriver);
+let travelBound = false;
+function switchMode(mode) {
+  currentMode = mode;
+  const isTravel = (mode === 'travel');
 
-  $('btnDriverMode').className = isDriver ? 'px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition' : 'px-3 py-1.5 rounded-full font-medium text-slate-500 transition';
-  $('btnViewerMode').className = !isDriver ? 'px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition' : 'px-3 py-1.5 rounded-full font-medium text-slate-500 transition';
+  $('travelPanel').classList.toggle('hidden', !isTravel);
+  $('watchPanel').classList.toggle('hidden', isTravel);
+  $('topSearchWrapper').classList.toggle('hidden', !isTravel);
 
-  if (isDriver && !driverBound) {
-    driverBound = true;
+  $('btnTravelMode').className = isTravel
+    ? 'px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition flex items-center gap-1.5'
+    : 'px-3 py-1.5 rounded-full font-medium text-slate-500 transition flex items-center gap-1.5';
+  $('btnWatchMode').className = !isTravel
+    ? 'px-3 py-1.5 rounded-full font-medium bg-slate-800 text-white transition'
+    : 'px-3 py-1.5 rounded-full font-medium text-slate-500 transition';
+
+  if (isTravel && !travelBound) {
+    travelBound = true;
     buildStatusBtns();
     $('avatarInput').onchange = async e => {
       const f = e.target.files[0]; if (!f) return;
@@ -676,7 +913,7 @@ function switchMode(isDriver) {
     };
     $('pickBtn').onclick = () => { pickMode = !pickMode; updatePick(); };
     map.on('click', async e => {
-      if (!pickMode) return;
+      if (!pickMode || currentMode !== 'travel') return;
       pickMode = false; updatePick();
       const { lat, lng } = e.latlng;
       let name = 'จุดที่ปักหมุด';
@@ -691,14 +928,26 @@ function switchMode(isDriver) {
     $('gpsBtn').onclick = () => watchId !== null ? stopGPS() : startGPS();
     $('demoBtn').onclick = () => demoTimer ? stopDemo() : startDemo();
   }
+
+  // รีเซ็ตและโฟกัสไปที่คนที่เป็นเป้าหมายของโหมดนั้น
+  lastDestSig = '';
+  renderPersonMarker('cha');
+  renderPersonMarker('fan');
+  setFollow(true);
+  renderFocusUI();
+  const focusLoc = usersData[getFocusRole()]?.location;
+  if (focusLoc) map.setView([focusLoc.lat, focusLoc.lng], 14);
 }
 
-$('btnDriverMode').onclick = () => switchMode(true);
-$('btnViewerMode').onclick = () => switchMode(false);
+$('btnTravelMode').onclick = () => switchMode('travel');
+$('btnWatchMode').onclick = () => switchMode('watch');
 buildStickers();
 
-if (new URLSearchParams(location.search).get('mode') === 'driver') switchMode(true);
-else switchMode(false);
+/* ================= AUTO LOGIN IF SAVED ================= */
+const savedRole = localStorage.getItem('wic_role');
+if (savedRole === 'cha' || savedRole === 'fan') {
+  loginAs(savedRole);
+}
 </script>
 </body>
 </html>
